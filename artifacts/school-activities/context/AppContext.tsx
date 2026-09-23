@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 export type Activity = {
   id: string;
   title: string;
+  date: string;
   location: string;
   type: string;
   hours: number;
@@ -61,8 +62,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             activities?: Activity[];
             role?: AppRole;
           };
+          const normalizeActivities = (items: Activity[] | undefined) =>
+            (items ?? []).map((item) => ({ ...item, date: item.date ?? '' }));
           const restoredStudents =
-            parsed.students?.map((item) => ({ ...item, activities: item.activities ?? [] })) ??
+            parsed.students?.map((item) => ({ ...item, activities: normalizeActivities(item.activities) })) ??
             (parsed.student
               ? [
                   {
@@ -70,7 +73,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                     name: parsed.student.name ?? '',
                     className: parsed.student.className ?? '',
                     institute: parsed.student.institute ?? '',
-                    activities: parsed.activities ?? [],
+                    activities: normalizeActivities(parsed.activities),
                   },
                 ]
               : []);

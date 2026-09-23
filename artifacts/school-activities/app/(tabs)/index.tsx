@@ -18,7 +18,6 @@ export default function DashboardScreen() {
       <View style={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}>
         <View style={styles.topLine}>
           <View>
-            <Text style={[styles.eyebrow, { color: colors.primary }]}>MERCOLEDÌ · 23 SETTEMBRE</Text>
             <Text style={[styles.greeting, { color: colors.foreground }]}>Ciao, {firstName}.</Text>
           </View>
           <View style={[styles.logoMark, { backgroundColor: colors.accent }]}>
@@ -105,7 +104,6 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   topLine: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 },
-  eyebrow: { fontSize: 10, fontWeight: '700', letterSpacing: 1.45, marginBottom: 6 },
   greeting: { fontSize: 31, fontWeight: '700', letterSpacing: -1.1 },
   logoMark: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   profilePrompt: { borderRadius: 23, padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 },

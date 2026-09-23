@@ -18,6 +18,13 @@ import * as Haptics from 'expo-haptics';
 
 const activityTypes = ['Laboratorio', 'Sport', 'Volontariato', 'Orientamento'];
 
+function formatDate(date: string) {
+  if (!date) return 'Data non indicata';
+  const parsed = new Date(`${date}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 function ActivityRow({
   activity,
   onEdit,
@@ -42,7 +49,7 @@ function ActivityRow({
           {activity.title}
         </Text>
         <Text style={[styles.activityMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
-          {activity.location}
+          {formatDate(activity.date)} · {activity.location}
         </Text>
         <View style={[styles.typeBadge, { backgroundColor: colors.secondary }]}>
           <Text style={[styles.typeText, { color: colors.secondaryForeground }]}>{activity.type}</Text>
@@ -82,6 +89,7 @@ function ActivityModal({
   const insets = useSafeAreaInsets();
   const { addActivity, updateActivity } = useApp();
   const [title, setTitle] = useState(activity?.title ?? '');
+  const [date, setDate] = useState(activity?.date ?? new Date().toISOString().slice(0, 10));
   const [location, setLocation] = useState(activity?.location ?? '');
   const [hours, setHours] = useState(activity ? String(activity.hours).replace('.', ',') : '');
   const [type, setType] = useState(activity?.type ?? activityTypes[0]);
@@ -96,6 +104,7 @@ function ActivityModal({
     }
     const nextActivity = {
       title: title.trim(),
+      date: date.trim(),
       location: location.trim(),
       type,
       hours: numericHours,
@@ -142,14 +151,14 @@ function ActivityModal({
           />
           <View style={styles.inputRow}>
             <View style={styles.halfInput}>
-              <Text style={[styles.inputLabel, { color: colors.foreground }]}>Luogo</Text>
+              <Text style={[styles.inputLabel, { color: colors.foreground }]}>Data</Text>
               <TextInput
-                accessibilityLabel="Luogo"
-                onChangeText={setLocation}
-                placeholder="Es. Aula magna"
+                accessibilityLabel="Data"
+                onChangeText={setDate}
+                placeholder="AAAA-MM-GG"
                 placeholderTextColor={colors.mutedForeground}
                 style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                value={location}
+                value={date}
               />
             </View>
             <View style={styles.halfInput}>
@@ -165,6 +174,15 @@ function ActivityModal({
               />
             </View>
           </View>
+          <Text style={[styles.inputLabel, { color: colors.foreground }]}>Luogo</Text>
+          <TextInput
+            accessibilityLabel="Luogo"
+            onChangeText={setLocation}
+            placeholder="Es. Aula magna"
+            placeholderTextColor={colors.mutedForeground}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+            value={location}
+          />
           <Text style={[styles.inputLabel, { color: colors.foreground }]}>Tipologia</Text>
           <View style={styles.chips}>
             {activityTypes.map((option) => (
