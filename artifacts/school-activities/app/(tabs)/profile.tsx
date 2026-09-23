@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -10,7 +11,7 @@ import * as Haptics from 'expo-haptics';
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { student, saveStudent } = useApp();
+  const { student, saveStudent, setRole } = useApp();
   const [name, setName] = useState(student?.name ?? '');
   const [className, setClassName] = useState(student?.className ?? '');
   const [institute, setInstitute] = useState(student?.institute ?? '');
@@ -22,6 +23,11 @@ export default function ProfileScreen() {
     setSaved(true);
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setTimeout(() => setSaved(false), 2200);
+  };
+
+  const openTeacherArea = async () => {
+    await setRole('teacher');
+    router.push('/teacher');
   };
 
   return (
@@ -110,6 +116,14 @@ export default function ProfileScreen() {
         <Feather name={saved ? 'check' : 'arrow-up-right'} size={18} color={colors.primaryForeground} />
       </Pressable>
       <Text style={[styles.privacy, { color: colors.mutedForeground }]}>I tuoi dati restano salvati sul dispositivo.</Text>
+      <Pressable
+        accessibilityLabel="Accedi come professore"
+        onPress={() => void openTeacherArea()}
+        style={({ pressed }) => [styles.teacherButton, { borderColor: colors.border }, pressed && { opacity: 0.62 }]}
+      >
+        <Feather name="users" size={16} color={colors.primary} />
+        <Text style={[styles.teacherText, { color: colors.primary }]}>Accedi come professore</Text>
+      </Pressable>
     </KeyboardAwareScrollViewCompat>
   );
 }
@@ -137,4 +151,6 @@ const styles = StyleSheet.create({
   saveButton: { height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   saveText: { fontSize: 15, fontWeight: '700' },
   privacy: { fontSize: 12, textAlign: 'center', marginTop: 14 },
+  teacherButton: { height: 48, borderWidth: 1, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, marginTop: 28 },
+  teacherText: { fontSize: 13, fontWeight: '700' },
 });

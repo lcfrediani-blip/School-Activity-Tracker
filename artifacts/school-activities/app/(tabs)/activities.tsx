@@ -18,17 +18,13 @@ import * as Haptics from 'expo-haptics';
 
 const activityTypes = ['Laboratorio', 'Sport', 'Volontariato', 'Orientamento'];
 
-function formatDate(date: string) {
-  const parsed = new Date(`${date}T12:00:00`);
-  if (Number.isNaN(parsed.getTime())) return date;
-  return parsed.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
-}
-
 function ActivityRow({
   activity,
+  onEdit,
   onDelete,
 }: {
   activity: Activity;
+  onEdit: () => void;
   onDelete: () => void;
 }) {
   const colors = useColors();
@@ -45,8 +41,8 @@ function ActivityRow({
         <Text style={[styles.activityTitle, { color: colors.foreground }]} numberOfLines={1}>
           {activity.title}
         </Text>
-        <Text style={[styles.activityMeta, { color: colors.mutedForeground }]}>
-          {formatDate(activity.date)} · {activity.location}
+        <Text style={[styles.activityMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
+          {activity.location}
         </Text>
         <View style={[styles.typeBadge, { backgroundColor: colors.secondary }]}>
           <Text style={[styles.typeText, { color: colors.secondaryForeground }]}>{activity.type}</Text>
@@ -55,11 +51,12 @@ function ActivityRow({
       <View style={styles.activityEnd}>
         <Text style={[styles.hoursValue, { color: colors.primary }]}>{activity.hours}h</Text>
         <Pressable
-          accessibilityLabel={`Elimina ${activity.title}`}
+          accessibilityLabel={`Modifica o elimina ${activity.title}`}
           hitSlop={10}
           onPress={() =>
-            Alert.alert('Eliminare attività?', 'Questa voce verrà rimossa dal riepilogo.', [
+            Alert.alert(activity.title, 'Scegli cosa vuoi fare con questa attività.', [
               { text: 'Annulla', style: 'cancel' },
+              { text: 'Modifica', onPress: onEdit },
               { text: 'Elimina', style: 'destructive', onPress: onDelete },
             ])
           }
@@ -72,41 +69,43 @@ function ActivityRow({
   );
 }
 
-function AddActivityModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+function ActivityModal({
+  visible,
+  activity,
+  onClose,
+}: {
+  visible: boolean;
+  activity: Activity | null;
+  onClose: () => void;
+}) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { addActivity } = useApp();
-  const [title, setTitle] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [location, setLocation] = useState('');
-  const [hours, setHours] = useState('');
-  const [type, setType] = useState(activityTypes[0]);
+  const { addActivity, updateActivity } = useApp();
+  const [title, setTitle] = useState(activity?.title ?? '');
+  const [location, setLocation] = useState(activity?.location ?? '');
+  const [hours, setHours] = useState(activity ? String(activity.hours).replace('.', ',') : '');
+  const [type, setType] = useState(activity?.type ?? activityTypes[0]);
   const [error, setError] = useState('');
-
-  const reset = () => {
-    setTitle('');
-    setDate(new Date().toISOString().slice(0, 10));
-    setLocation('');
-    setHours('');
-    setType(activityTypes[0]);
-    setError('');
-  };
+  const isEditing = Boolean(activity);
 
   const save = async () => {
     const numericHours = Number(hours.replace(',', '.'));
-    if (!title.trim() || !date.trim() || !location.trim() || !Number.isFinite(numericHours) || numericHours <= 0) {
+    if (!title.trim() || !location.trim() || !Number.isFinite(numericHours) || numericHours <= 0) {
       setError('Completa tutti i campi con valori validi.');
       return;
     }
-    await addActivity({
+    const nextActivity = {
       title: title.trim(),
-      date: date.trim(),
       location: location.trim(),
       type,
       hours: numericHours,
-    });
+    };
+    if (activity) {
+      await updateActivity(activity.id, nextActivity);
+    } else {
+      await addActivity(nextActivity);
+    }
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    reset();
     onClose();
   };
 
@@ -115,8 +114,8 @@ function AddActivityModal({ visible, onClose }: { visible: boolean; onClose: () 
       <View style={[styles.modal, { backgroundColor: colors.background, paddingTop: insets.top + 10 }]}>
         <View style={styles.modalHeader}>
           <View>
-            <Text style={[styles.modalEyebrow, { color: colors.primary }]}>NUOVA REGISTRAZIONE</Text>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Aggiungi attività</Text>
+            <Text style={[styles.modalEyebrow, { color: colors.primary }]}>{isEditing ? 'MODIFICA REGISTRAZIONE' : 'NUOVA REGISTRAZIONE'}</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{isEditing ? 'Modifica attività' : 'Aggiungi attività'}</Text>
           </View>
           <Pressable
             accessibilityLabel="Chiudi"
@@ -143,14 +142,14 @@ function AddActivityModal({ visible, onClose }: { visible: boolean; onClose: () 
           />
           <View style={styles.inputRow}>
             <View style={styles.halfInput}>
-              <Text style={[styles.inputLabel, { color: colors.foreground }]}>Data</Text>
+              <Text style={[styles.inputLabel, { color: colors.foreground }]}>Luogo</Text>
               <TextInput
-                accessibilityLabel="Data"
-                onChangeText={setDate}
-                placeholder="AAAA-MM-GG"
+                accessibilityLabel="Luogo"
+                onChangeText={setLocation}
+                placeholder="Es. Aula magna"
                 placeholderTextColor={colors.mutedForeground}
                 style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                value={date}
+                value={location}
               />
             </View>
             <View style={styles.halfInput}>
@@ -166,15 +165,6 @@ function AddActivityModal({ visible, onClose }: { visible: boolean; onClose: () 
               />
             </View>
           </View>
-          <Text style={[styles.inputLabel, { color: colors.foreground }]}>Luogo</Text>
-          <TextInput
-            accessibilityLabel="Luogo"
-            onChangeText={setLocation}
-            placeholder="Es. Aula magna"
-            placeholderTextColor={colors.mutedForeground}
-            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-            value={location}
-          />
           <Text style={[styles.inputLabel, { color: colors.foreground }]}>Tipologia</Text>
           <View style={styles.chips}>
             {activityTypes.map((option) => (
@@ -192,11 +182,11 @@ function AddActivityModal({ visible, onClose }: { visible: boolean; onClose: () 
           </View>
           {error ? <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text> : null}
           <Pressable
-            accessibilityLabel="Salva attività"
+            accessibilityLabel={isEditing ? 'Salva modifiche' : 'Salva attività'}
             onPress={() => void save()}
             style={({ pressed }) => [styles.saveButton, { backgroundColor: colors.primary }, pressed && { opacity: 0.82 }]}
           >
-            <Text style={[styles.saveButtonText, { color: colors.primaryForeground }]}>Salva attività</Text>
+            <Text style={[styles.saveButtonText, { color: colors.primaryForeground }]}>{isEditing ? 'Salva modifiche' : 'Salva attività'}</Text>
             <Feather name="arrow-up-right" size={18} color={colors.primaryForeground} />
           </Pressable>
         </KeyboardAwareScrollViewCompat>
@@ -208,9 +198,20 @@ function AddActivityModal({ visible, onClose }: { visible: boolean; onClose: () 
 export default function ActivitiesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { activities, removeActivity } = useApp();
+  const { activities, removeActivity, student } = useApp();
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const totalHours = activities.reduce((sum, activity) => sum + activity.hours, 0);
+
+  const openNew = () => {
+    setEditingActivity(null);
+    setModalVisible(true);
+  };
+
+  const openEdit = (activity: Activity) => {
+    setEditingActivity(activity);
+    setModalVisible(true);
+  };
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -238,8 +239,9 @@ export default function ActivitiesScreen() {
               </View>
               <Pressable
                 accessibilityLabel="Aggiungi attività"
-                onPress={() => setModalVisible(true)}
-                style={({ pressed }) => [styles.addButton, { backgroundColor: colors.primary }, pressed && { opacity: 0.8 }]}
+                disabled={!student}
+                onPress={openNew}
+                style={({ pressed }) => [styles.addButton, { backgroundColor: colors.primary, opacity: student ? 1 : 0.42 }, pressed && { opacity: 0.8 }]}
               >
                 <Feather name="plus" size={20} color={colors.primaryForeground} />
               </Pressable>
@@ -260,11 +262,30 @@ export default function ActivitiesScreen() {
             </View>
           </View>
         }
-        renderItem={({ item }) => <ActivityRow activity={item} onDelete={() => void removeActivity(item.id)} />}
+        renderItem={({ item }) => (
+          <ActivityRow
+            activity={item}
+            onDelete={() =>
+              Alert.alert('Eliminare attività?', 'Questa voce verrà rimossa dal riepilogo.', [
+                { text: 'Annulla', style: 'cancel' },
+                { text: 'Elimina', style: 'destructive', onPress: () => void removeActivity(item.id) },
+              ])
+            }
+            onEdit={() => openEdit(item)}
+          />
+        )}
         scrollEnabled={activities.length > 0}
         showsVerticalScrollIndicator={false}
       />
-      <AddActivityModal visible={modalVisible} onClose={() => setModalVisible(false)} />
+      <ActivityModal
+        key={editingActivity?.id ?? 'new-activity'}
+        activity={editingActivity}
+        onClose={() => {
+          setModalVisible(false);
+          setEditingActivity(null);
+        }}
+        visible={modalVisible}
+      />
     </View>
   );
 }
