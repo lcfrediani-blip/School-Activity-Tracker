@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/school-activities/"
+title = "School Activities"
+description = "Un’app mobile elegante per studenti delle scuole superiori per gestire il proprio profilo scolastico, registrare attività extrascolastiche e monitorare il totale delle ore svolte."
+version = "1.0.0"
+id = "artifacts/school-activities"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/school-activities/" ]
+localPort = 19053
+
+[services.development]
+run = "pnpm --filter @workspace/school-activities run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/school-activities", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/school-activities", "run", "serve" ]
+
+[services.env]
+PORT = "19053"
+BASE_PATH = "/school-activities/"
