@@ -1,0 +1,29 @@
+kind = "video"
+videoAspectRatio = "9:16"
+previewPath = "/school-activities-film/"
+title = "FuoriClasse — Video di presentazione"
+description = "Un breve filmato verticale che presenta l’app FuoriClasse: riepilogo delle ore, registrazione delle attività, profilo studente e monitoraggio degli alunni per i professori."
+version = "1.0.0"
+id = "artifacts/school-activities-film"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/school-activities-film/" ]
+localPort = 22796
+
+[services.development]
+run = "pnpm --filter @workspace/school-activities-film run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/school-activities-film", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/school-activities-film/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22796"
+BASE_PATH = "/school-activities-film/"
