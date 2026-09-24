@@ -16,8 +16,6 @@ import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
-const activityTypes = ['Laboratorio', 'Sport', 'Volontariato', 'Orientamento'];
-
 function formatDate(date: string) {
   if (!date) return 'Data non indicata';
   const parsed = new Date(`${date}T12:00:00`);
@@ -39,7 +37,7 @@ function ActivityRow({
     <View style={[styles.activityRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={[styles.activityIcon, { backgroundColor: colors.accent }]}>
         <Feather
-          name={activity.type === 'Sport' ? 'activity' : activity.type === 'Volontariato' ? 'heart' : 'book-open'}
+          name="book-open"
           size={18}
           color={colors.primary}
         />
@@ -51,9 +49,6 @@ function ActivityRow({
         <Text style={[styles.activityMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
           {formatDate(activity.date)} · {activity.location}
         </Text>
-        <View style={[styles.typeBadge, { backgroundColor: colors.secondary }]}>
-          <Text style={[styles.typeText, { color: colors.secondaryForeground }]}>{activity.type}</Text>
-        </View>
       </View>
       <View style={styles.activityEnd}>
         <Text style={[styles.hoursValue, { color: colors.primary }]}>{activity.hours}h</Text>
@@ -92,7 +87,6 @@ function ActivityModal({
   const [date, setDate] = useState(activity?.date ?? new Date().toISOString().slice(0, 10));
   const [location, setLocation] = useState(activity?.location ?? '');
   const [hours, setHours] = useState(activity ? String(activity.hours).replace('.', ',') : '');
-  const [type, setType] = useState(activity?.type ?? activityTypes[0]);
   const [error, setError] = useState('');
   const isEditing = Boolean(activity);
 
@@ -106,7 +100,6 @@ function ActivityModal({
       title: title.trim(),
       date: date.trim(),
       location: location.trim(),
-      type,
       hours: numericHours,
     };
     if (activity) {
@@ -183,21 +176,6 @@ function ActivityModal({
             style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
             value={location}
           />
-          <Text style={[styles.inputLabel, { color: colors.foreground }]}>Tipologia</Text>
-          <View style={styles.chips}>
-            {activityTypes.map((option) => (
-              <Pressable
-                key={option}
-                onPress={() => setType(option)}
-                style={[
-                  styles.chip,
-                  { borderColor: type === option ? colors.primary : colors.border, backgroundColor: type === option ? colors.accent : colors.card },
-                ]}
-              >
-                <Text style={[styles.chipText, { color: type === option ? colors.primary : colors.mutedForeground }]}>{option}</Text>
-              </Pressable>
-            ))}
-          </View>
           {error ? <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text> : null}
           <Pressable
             accessibilityLabel={isEditing ? 'Salva modifiche' : 'Salva attività'}
@@ -326,9 +304,7 @@ const styles = StyleSheet.create({
   activityIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   activityInfo: { flex: 1, minWidth: 0 },
   activityTitle: { fontSize: 15, fontWeight: '600', marginBottom: 4 },
-  activityMeta: { fontSize: 12, marginBottom: 8 },
-  typeBadge: { borderRadius: 7, paddingHorizontal: 7, paddingVertical: 4, alignSelf: 'flex-start' },
-  typeText: { fontSize: 10, fontWeight: '600' },
+  activityMeta: { fontSize: 12 },
   activityEnd: { alignItems: 'flex-end', justifyContent: 'space-between', alignSelf: 'stretch' },
   hoursValue: { fontSize: 16, fontWeight: '700' },
   deleteButton: { paddingTop: 10 },
@@ -345,9 +321,6 @@ const styles = StyleSheet.create({
   input: { height: 50, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, fontSize: 15, marginBottom: 17 },
   inputRow: { flexDirection: 'row', gap: 12 },
   halfInput: { flex: 1 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
-  chip: { borderWidth: 1, borderRadius: 11, paddingHorizontal: 12, paddingVertical: 10 },
-  chipText: { fontSize: 12, fontWeight: '600' },
   errorText: { fontSize: 13, marginBottom: 14 },
   saveButton: { height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, marginTop: 4 },
   saveButtonText: { fontSize: 15, fontWeight: '700' },

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "School Activities",
-    "slug": "school-activities",
+    "name": "Fuori Classe",
+    "slug": "fuoriclasse",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "school-activities",
+    "scheme": "fuoriclasse",
     "userInterfaceStyle": "automatic",
     "splash": {
       "backgroundColor": "#f8f6f1",
@@ -13,13 +13,18 @@
       "resizeMode": "contain"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.fuoriclasse.app"
     },
-    "android": {},
+    "android": {
+      "package": "com.fuoriclasse.app"
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

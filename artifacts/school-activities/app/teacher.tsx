@@ -33,9 +33,6 @@ function StudentCard({ student, onPress }: { student: Student; onPress: () => vo
       </View>
       <View style={styles.studentCopy}>
         <Text style={[styles.studentName, { color: colors.foreground }]} numberOfLines={1}>{student.name}</Text>
-        <Text style={[styles.studentMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
-          {student.className} · {student.institute}
-        </Text>
       </View>
       <View style={styles.studentStats}>
         <Text style={[styles.studentHours, { color: colors.primary }]}>{totalHours}h</Text>
@@ -46,24 +43,27 @@ function StudentCard({ student, onPress }: { student: Student; onPress: () => vo
   );
 }
 
+function formatActivityDate(date: string) {
+  if (!date) return 'Data non indicata';
+  const parsed = new Date(`${date}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 function AddStudentModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { addStudent } = useApp();
   const [name, setName] = useState('');
-  const [className, setClassName] = useState('');
-  const [institute, setInstitute] = useState('');
   const [error, setError] = useState('');
 
   const save = async () => {
-    if (!name.trim() || !className.trim() || !institute.trim()) {
-      setError('Completa tutti i campi.');
+    if (!name.trim()) {
+      setError('Inserisci il nome dell’alunno.');
       return;
     }
-    await addStudent({ name: name.trim(), className: className.trim(), institute: institute.trim() });
+    await addStudent({ name: name.trim() });
     setName('');
-    setClassName('');
-    setInstitute('');
     setError('');
     onClose();
   };
@@ -99,30 +99,6 @@ function AddStudentModal({ visible, onClose }: { visible: boolean; onClose: () =
             style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
             value={name}
           />
-          <View style={styles.inputRow}>
-            <View style={styles.halfInput}>
-              <Text style={[styles.inputLabel, { color: colors.foreground }]}>Classe</Text>
-              <TextInput
-                accessibilityLabel="Classe"
-                onChangeText={setClassName}
-                placeholder="Es. 4B"
-                placeholderTextColor={colors.mutedForeground}
-                style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                value={className}
-              />
-            </View>
-            <View style={styles.halfInput}>
-              <Text style={[styles.inputLabel, { color: colors.foreground }]}>Istituto</Text>
-              <TextInput
-                accessibilityLabel="Istituto"
-                onChangeText={setInstitute}
-                placeholder="Es. Liceo"
-                placeholderTextColor={colors.mutedForeground}
-                style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                value={institute}
-              />
-            </View>
-          </View>
           {error ? <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text> : null}
           <Pressable
             accessibilityLabel="Salva alunno"
@@ -147,7 +123,6 @@ function StudentDetail({ student }: { student: Student }) {
         <View>
           <Text style={[styles.detailEyebrow, { color: colors.primaryForeground }]}>DETTAGLIO ALUNNO</Text>
           <Text style={[styles.detailName, { color: colors.primaryForeground }]}>{student.name}</Text>
-          <Text style={[styles.detailMeta, { color: colors.primaryForeground }]}>{student.className} · {student.institute}</Text>
         </View>
         <View style={[styles.detailTotal, { backgroundColor: colors.primaryForeground }]}>
           <Text style={[styles.detailTotalNumber, { color: colors.primary }]}>{totalHours}h</Text>
@@ -160,7 +135,7 @@ function StudentDetail({ student }: { student: Student }) {
           <View key={activity.id} style={[styles.detailActivity, { borderColor: colors.primaryForeground }]}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.detailActivityTitle, { color: colors.primaryForeground }]}>{activity.title}</Text>
-              <Text style={[styles.detailActivityMeta, { color: colors.primaryForeground }]}>{activity.type} · {activity.location}</Text>
+              <Text style={[styles.detailActivityMeta, { color: colors.primaryForeground }]}>{formatActivityDate(activity.date)} · {activity.location}</Text>
             </View>
             <Text style={[styles.detailActivityHours, { color: colors.primaryForeground }]}>{activity.hours}h</Text>
           </View>
@@ -178,10 +153,6 @@ export default function TeacherScreen() {
   const { students, setRole } = useApp();
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const totalHours = students.reduce(
-    (sum, student) => sum + student.activities.reduce((studentSum, activity) => studentSum + activity.hours, 0),
-    0,
-  );
 
   const exitTeacherMode = async () => {
     await setRole('student');
@@ -223,14 +194,6 @@ export default function TeacherScreen() {
                 <Feather name="plus" size={20} color={colors.primaryForeground} />
               </Pressable>
             </View>
-            <View style={[styles.summaryCard, { backgroundColor: colors.primary }]}>
-              <View>
-                <Text style={[styles.summaryLabel, { color: colors.primaryForeground }]}>PANORAMICA CLASSE</Text>
-                <Text style={[styles.summaryNumber, { color: colors.primaryForeground }]}>{students.length}</Text>
-                <Text style={[styles.summaryCaption, { color: colors.primaryForeground }]}>alunni · {totalHours} ore totali</Text>
-              </View>
-              <Feather name="bar-chart-2" size={30} color={colors.primaryForeground} />
-            </View>
             {selectedStudent ? <StudentDetail student={selectedStudent} /> : null}
             <View style={styles.sectionHeading}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Tutti gli alunni</Text>
@@ -253,10 +216,6 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 10, fontWeight: '700', letterSpacing: 1.45, marginBottom: 5 },
   pageTitle: { fontSize: 30, fontWeight: '700', letterSpacing: -1 },
   addButton: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  summaryCard: { borderRadius: 23, padding: 21, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  summaryLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.3, opacity: 0.72 },
-  summaryNumber: { fontSize: 44, lineHeight: 50, fontWeight: '700', letterSpacing: -2 },
-  summaryCaption: { fontSize: 12, opacity: 0.78 },
   sectionHeading: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, marginTop: 10 },
   sectionTitle: { fontSize: 20, fontWeight: '700', letterSpacing: -0.4 },
   sectionCount: { fontSize: 13 },
@@ -265,7 +224,6 @@ const styles = StyleSheet.create({
   studentInitial: { fontSize: 17, fontWeight: '700' },
   studentCopy: { flex: 1, minWidth: 0 },
   studentName: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  studentMeta: { fontSize: 11 },
   studentStats: { alignItems: 'flex-end', marginRight: 10 },
   studentHours: { fontSize: 15, fontWeight: '700', marginBottom: 3 },
   studentActivityCount: { fontSize: 10 },
@@ -273,7 +231,6 @@ const styles = StyleSheet.create({
   detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   detailEyebrow: { fontSize: 9, fontWeight: '700', letterSpacing: 1.25, opacity: 0.72, marginBottom: 5 },
   detailName: { fontSize: 19, fontWeight: '700', marginBottom: 4 },
-  detailMeta: { fontSize: 11, opacity: 0.78 },
   detailTotal: { borderRadius: 13, minWidth: 60, paddingVertical: 8, alignItems: 'center' },
   detailTotalNumber: { fontSize: 18, fontWeight: '700' },
   detailTotalLabel: { fontSize: 9, fontWeight: '600' },
@@ -294,8 +251,6 @@ const styles = StyleSheet.create({
   closeButton: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   inputLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8, marginTop: 4 },
   input: { height: 50, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, fontSize: 15, marginBottom: 17 },
-  inputRow: { flexDirection: 'row', gap: 12 },
-  halfInput: { flex: 1 },
   errorText: { fontSize: 13, marginBottom: 14 },
   saveButton: { height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, marginTop: 4 },
   saveButtonText: { fontSize: 15, fontWeight: '700' },

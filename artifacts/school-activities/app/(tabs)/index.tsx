@@ -15,7 +15,7 @@ export default function DashboardScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}>
+      <View style={{ paddingTop: insets.top + 52, paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}>
         <View style={styles.topLine}>
           <View>
             <Text style={[styles.greeting, { color: colors.foreground }]}>Ciao, {firstName}.</Text>
@@ -86,7 +86,7 @@ export default function DashboardScreen() {
               <View style={[styles.recentDot, { backgroundColor: colors.primary }]} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.recentTitle, { color: colors.foreground }]} numberOfLines={1}>{activity.title}</Text>
-                <Text style={[styles.recentMeta, { color: colors.mutedForeground }]}>{activity.type} · {activity.location}</Text>
+                <Text style={[styles.recentMeta, { color: colors.mutedForeground }]}>{activity.location}</Text>
               </View>
               <Text style={[styles.recentHours, { color: colors.primary }]}>{activity.hours}h</Text>
             </View>
