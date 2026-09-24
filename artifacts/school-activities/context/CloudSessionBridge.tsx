@@ -24,6 +24,12 @@ function fingerprint(activities: Array<{
   });
 }
 
+function getHttpStatus(error: unknown): number | null {
+  if (!error || typeof error !== 'object' || !('status' in error)) return null;
+  const status = (error as { status?: unknown }).status;
+  return typeof status === 'number' ? status : null;
+}
+
 export function CloudSessionBridge() {
   const { isLoaded: clerkLoaded, isSignedIn, userId, getToken } = useAuth();
   const {
@@ -38,11 +44,13 @@ export function CloudSessionBridge() {
   const queryClient = useQueryClient();
   const pathname = usePathname();
   const syncMutation = useSyncStudentData();
+  const [tokenReadyForUserId, setTokenReadyForUserId] = useState<string | null>(null);
   const profileQuery = useGetAccountProfile({
     query: {
       queryKey: [...getGetAccountProfileQueryKey(), userId ?? 'signed-out'],
-      enabled: clerkLoaded && isSignedIn === true,
-      retry: false,
+      enabled: clerkLoaded && isSignedIn === true && !!userId && tokenReadyForUserId === userId,
+      retry: (failureCount, error) => getHttpStatus(error) !== 404 && failureCount < 2,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000),
     },
   });
   const activatedProfileId = useRef<string | null>(null);
@@ -63,11 +71,13 @@ export function CloudSessionBridge() {
   const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
+    if (!clerkLoaded) return;
     setAuthTokenGetter(async () => {
-      if (!clerkLoaded || !isSignedIn) return null;
+      if (!isSignedIn) return null;
       return getToken();
     });
-  }, [clerkLoaded, getToken, isSignedIn]);
+    setTokenReadyForUserId(isSignedIn ? userId ?? null : null);
+  }, [clerkLoaded, getToken, isSignedIn, userId]);
 
   useEffect(() => {
     if (!clerkLoaded) return;
@@ -101,15 +111,16 @@ export function CloudSessionBridge() {
 
   useEffect(() => {
     if (!clerkLoaded || !isSignedIn) return;
-    if (profileQuery.isError) {
-      if (pathname !== '/onboarding') router.replace('/onboarding');
+    if (profileQuery.isError && !profileQuery.data) {
+      if (getHttpStatus(profileQuery.error) === 404 && pathname !== '/onboarding') {
+        router.replace('/onboarding');
+      }
       return;
     }
     const profile = profileQuery.data;
     if (
       !profile ||
       profile.clerkUserId !== userId ||
-      !profileQuery.isSuccess ||
       activatedProfileId.current === profile.id
     ) return;
 
@@ -118,9 +129,15 @@ export function CloudSessionBridge() {
       if (profile.role === 'student') {
         const remote = await syncMutationRef.current.mutateAsync({
           data: { activities: [], deletedIds: [] },
-        });
-        successfulFingerprint.current = fingerprint(remote.activities, []);
-        await activateProfileRef.current(profile, remote.activities, remote.deletedIds);
+        }).catch(() => null);
+        if (remote) {
+          successfulFingerprint.current = fingerprint(remote.activities, []);
+          await activateProfileRef.current(profile, remote.activities, remote.deletedIds);
+        } else {
+          // The profile exists; a temporary sync failure must not send the user
+          // back through profile setup. The regular sync effect retries later.
+          await activateProfileRef.current(profile);
+        }
       } else {
         await activateProfileRef.current(profile);
       }
@@ -131,15 +148,16 @@ export function CloudSessionBridge() {
       }
     })().catch(() => {
       activatedProfileId.current = null;
-      if (pathname !== '/onboarding') router.replace('/onboarding');
+      setTimeout(() => setRetryTick((tick) => tick + 1), 5000);
     });
   }, [
     clerkLoaded,
     isSignedIn,
     pathname,
     profileQuery.data,
+    profileQuery.error,
     profileQuery.isError,
-    profileQuery.isSuccess,
+    retryTick,
   ]);
 
   useEffect(() => {
