@@ -3,6 +3,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSignIn, useSignUp } from '@clerk/expo';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useApp, type AppRole } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
@@ -14,14 +16,20 @@ export default function LoginScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ mode?: string }>();
-  const { registerProfile, signIn } = useApp();
+  const { signIn: signInLocal } = useApp();
+  const { signIn: signInFlow } = useSignIn();
+  const { signUp: signUpFlow } = useSignUp();
   const [mode, setMode] = useState<AccessMode>(params.mode === 'register' ? 'register' : 'login');
   const [role, setRole] = useState<AppRole>('student');
   const [name, setName] = useState('');
-  const [className, setClassName] = useState('');
+  const [classCode, setClassCode] = useState('');
   const [institute, setInstitute] = useState('');
+  const [teacherCode, setTeacherCode] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationPending, setVerificationPending] = useState<'signup' | 'signin' | null>(null);
+  const [localOnly, setLocalOnly] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -31,11 +39,57 @@ export default function LoginScreen() {
 
   const changeMode = (nextMode: AccessMode) => {
     setMode(nextMode);
+    setVerificationPending(null);
+    if (nextMode === 'register') setLocalOnly(false);
     setError('');
   };
 
-  const finishAccess = (profileRole: AppRole) => {
-    router.replace(profileRole === 'teacher' ? '/teacher' : '/(tabs)');
+  const savePendingProfile = async () => {
+    await AsyncStorage.setItem(
+      '@school-activities/pending-cloud-profile',
+      JSON.stringify({
+        role,
+        name: name.trim(),
+        classCode: classCode.trim().toUpperCase(),
+        institutionName: institute.trim(),
+        teacherCode: teacherCode.trim().toUpperCase(),
+      }),
+    );
+  };
+
+  const finalizeSignUp = async () => {
+    await signUpFlow.finalize();
+    router.replace('/onboarding');
+  };
+
+  const verifyEmailCode = async () => {
+    if (verificationPending === 'signup') {
+      const { error: verifyError } = await signUpFlow.verifications.verifyEmailCode({
+        code: verificationCode.trim(),
+      });
+      if (verifyError) {
+        setError(verifyError.message || 'Il codice non è valido. Controlla l’email e riprova.');
+        return;
+      }
+      if (signUpFlow.status === 'complete') {
+        await finalizeSignUp();
+        return;
+      }
+      setError('La registrazione non è ancora completa. Richiedi un nuovo codice e riprova.');
+      return;
+    }
+
+    const { error: verifyError } = await signInFlow.mfa.verifyEmailCode({
+      code: verificationCode.trim(),
+    });
+    if (verifyError) {
+      setError(verifyError.message || 'Il codice non è valido. Controlla l’email e riprova.');
+      return;
+    }
+    if (signInFlow.status === 'complete') {
+      await signInFlow.finalize();
+      router.replace('/');
+    }
   };
 
   const submit = async () => {
@@ -43,22 +97,84 @@ export default function LoginScreen() {
     setSubmitting(true);
     setError('');
 
-    if (password.length < 6) {
-      setError('La password deve contenere almeno 6 caratteri.');
-      setSubmitting(false);
-      return;
-    }
+    try {
+      if (verificationPending) {
+        await verifyEmailCode();
+        return;
+      }
 
-    const result = isRegistering
-      ? await registerProfile({ email, name, password, role, className, institute })
-      : await signIn(email, password);
+      if (localOnly) {
+        const result = await signInLocal(email, password);
+        if (!result.ok) {
+          setError(result.error ?? 'Controlla i dati inseriti.');
+          return;
+        }
+        router.replace(result.role === 'teacher' ? '/teacher' : '/(tabs)');
+        return;
+      }
 
-    if (!result.ok) {
-      setError(result.error ?? 'Controlla i dati inseriti.');
+      if (isRegistering) {
+        if (!name.trim()) {
+          setError('Inserisci nome e cognome.');
+          return;
+        }
+        if (role === 'student' && !classCode.trim()) {
+          setError('Inserisci il codice della classe fornito dall’insegnante.');
+          return;
+        }
+        if (role === 'teacher' && !institute.trim()) {
+          setError('Indica il nome dell’istituto.');
+          return;
+        }
+        await savePendingProfile();
+        const names = name.trim().split(/\s+/);
+        const { error: signUpError } = await signUpFlow.password({
+          emailAddress: email.trim(),
+          password,
+          firstName: names[0],
+          lastName: names.slice(1).join(' ') || undefined,
+        });
+        if (signUpError) {
+          setError(signUpError.message || 'Non è stato possibile creare l’account.');
+          return;
+        }
+        if (signUpFlow.status === 'complete') {
+          await finalizeSignUp();
+          return;
+        }
+        await signUpFlow.verifications.sendEmailCode();
+        setVerificationPending('signup');
+      } else {
+        const { error: signInError } = await signInFlow.password({
+          emailAddress: email.trim(),
+          password,
+        });
+        if (signInError) {
+          setError(signInError.message || 'Email o password non corretti.');
+          return;
+        }
+        if (signInFlow.status === 'complete') {
+          await signInFlow.finalize();
+          router.replace('/');
+          return;
+        }
+        if (signInFlow.status === 'needs_client_trust') {
+          const emailFactor = signInFlow.supportedSecondFactors.find(
+            (factor) => factor.strategy === 'email_code',
+          );
+          if (emailFactor) {
+            await signInFlow.mfa.sendEmailCode();
+            setVerificationPending('signin');
+            return;
+          }
+        }
+        setError('Completa la verifica aggiuntiva richiesta dal tuo account.');
+      }
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Si è verificato un errore. Riprova.');
+    } finally {
       setSubmitting(false);
-      return;
     }
-    finishAccess(result.role ?? role);
   };
 
   const inputStyle = {
@@ -126,7 +242,7 @@ export default function LoginScreen() {
           })}
         </View>
 
-        {isRegistering ? (
+        {isRegistering && !verificationPending && !localOnly ? (
           <View style={styles.registerFields}>
             <Text style={[styles.fieldHeading, { color: colors.foreground }]}>Sei un allievo o un insegnante?</Text>
             <View style={styles.roleRow}>
@@ -164,72 +280,110 @@ export default function LoginScreen() {
 
             {role === 'student' ? (
               <TextInputField
-                label="Classe"
-                value={className}
-                onChangeText={setClassName}
-                placeholder="Es. 4B"
-                accessibilityLabel="Classe"
+                label="Codice classe"
+                value={classCode}
+                onChangeText={setClassCode}
+                placeholder="Es. CLASS-8A3F..."
+                accessibilityLabel="Codice classe"
               />
-            ) : null}
-
-            <Text style={[styles.label, { color: colors.foreground }]}>Istituto</Text>
-            <TextInput
-              accessibilityLabel="Istituto"
-              autoCapitalize="words"
-              onChangeText={setInstitute}
-              onFocus={() => setError('')}
-              placeholder="Es. Liceo Leonardo da Vinci"
-              placeholderTextColor={colors.mutedForeground}
-              style={[styles.input, inputStyle]}
-              value={institute}
-            />
+            ) : (
+              <>
+                <TextInputField
+                  label="Istituto"
+                  value={institute}
+                  onChangeText={setInstitute}
+                  placeholder="Es. Liceo Leonardo da Vinci"
+                  accessibilityLabel="Istituto"
+                />
+                <TextInputField
+                  label="Codice insegnante (facoltativo)"
+                  value={teacherCode}
+                  onChangeText={setTeacherCode}
+                  placeholder="Se un collega ti ha invitato"
+                  accessibilityLabel="Codice insegnante"
+                />
+                <Text style={[styles.helper, { color: colors.mutedForeground, marginBottom: 14 }]}>
+                  Senza codice creerai un nuovo istituto e riceverai un codice da condividere con i colleghi.
+                </Text>
+              </>
+            )}
+            <View nativeID="clerk-captcha" />
           </View>
         ) : null}
 
-        <View style={styles.form}>
-          <Text style={[styles.label, { color: colors.foreground }]}>Email</Text>
-          <TextInput
-            accessibilityLabel="Email"
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            onChangeText={setEmail}
-            onFocus={() => setError('')}
-            placeholder="nome@scuola.it"
-            placeholderTextColor={colors.mutedForeground}
-            style={[styles.input, inputStyle]}
-            textContentType="emailAddress"
-            value={email}
-          />
-
-          <View style={styles.passwordLabelRow}>
-            <Text style={[styles.label, { color: colors.foreground }]}>Password</Text>
-            <Text style={[styles.helper, { color: colors.mutedForeground }]}>min. 6 caratteri</Text>
-          </View>
-          <View style={[styles.passwordInput, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {verificationPending ? (
+          <View style={styles.form}>
+            <Text style={[styles.label, { color: colors.foreground }]}>Codice ricevuto via email</Text>
             <TextInput
-              accessibilityLabel="Password"
+              accessibilityLabel="Codice di verifica"
               autoCapitalize="none"
-              onChangeText={setPassword}
+              keyboardType="number-pad"
+              onChangeText={setVerificationCode}
               onFocus={() => setError('')}
               onSubmitEditing={() => void submit()}
-              placeholder={isRegistering ? 'Scegli una password' : 'Inserisci la password'}
+              placeholder="Inserisci il codice"
               placeholderTextColor={colors.mutedForeground}
               returnKeyType="done"
-              secureTextEntry={!passwordVisible}
-              style={[styles.passwordTextInput, { color: colors.foreground }]}
-              textContentType={isRegistering ? 'newPassword' : 'password'}
-              value={password}
+              style={[styles.input, inputStyle]}
+              value={verificationCode}
             />
             <Pressable
-              accessibilityLabel={passwordVisible ? 'Nascondi password' : 'Mostra password'}
-              hitSlop={10}
-              onPress={() => setPasswordVisible((visible) => !visible)}
+              onPress={() => {
+                void (verificationPending === 'signup'
+                  ? signUpFlow.verifications.sendEmailCode()
+                  : signInFlow.mfa.sendEmailCode());
+              }}
+              style={styles.resendCode}
             >
-              <Feather name={passwordVisible ? 'eye-off' : 'eye'} size={18} color={colors.mutedForeground} />
+              <Text style={[styles.helper, { color: colors.primary }]}>Invia un nuovo codice</Text>
             </Pressable>
           </View>
-        </View>
+        ) : (
+          <View style={styles.form}>
+            <Text style={[styles.label, { color: colors.foreground }]}>Email</Text>
+            <TextInput
+              accessibilityLabel="Email"
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              onChangeText={setEmail}
+              onFocus={() => setError('')}
+              placeholder="nome@scuola.it"
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.input, inputStyle]}
+              textContentType="emailAddress"
+              value={email}
+            />
+
+            <View style={styles.passwordLabelRow}>
+              <Text style={[styles.label, { color: colors.foreground }]}>Password</Text>
+              <Text style={[styles.helper, { color: colors.mutedForeground }]}>gestita in modo sicuro</Text>
+            </View>
+            <View style={[styles.passwordInput, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <TextInput
+                accessibilityLabel="Password"
+                autoCapitalize="none"
+                onChangeText={setPassword}
+                onFocus={() => setError('')}
+                onSubmitEditing={() => void submit()}
+                placeholder={isRegistering ? 'Scegli una password' : 'Inserisci la password'}
+                placeholderTextColor={colors.mutedForeground}
+                returnKeyType="done"
+                secureTextEntry={!passwordVisible}
+                style={[styles.passwordTextInput, { color: colors.foreground }]}
+                textContentType={isRegistering ? 'newPassword' : 'password'}
+                value={password}
+              />
+              <Pressable
+                accessibilityLabel={passwordVisible ? 'Nascondi password' : 'Mostra password'}
+                hitSlop={10}
+                onPress={() => setPasswordVisible((visible) => !visible)}
+              >
+                <Feather name={passwordVisible ? 'eye-off' : 'eye'} size={18} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {error ? (
           <View style={[styles.errorBox, { backgroundColor: colors.accent }]}>
@@ -249,15 +403,37 @@ export default function LoginScreen() {
           ]}
         >
           <Text style={[styles.submitText, { color: colors.primaryForeground }]}>
-            {submitting ? 'Attendi…' : isRegistering ? 'Crea il profilo' : 'Accedi'}
+            {submitting
+              ? 'Attendi…'
+              : verificationPending
+                ? 'Verifica email'
+                : isRegistering
+                  ? 'Crea il profilo online'
+                  : localOnly
+                    ? 'Accedi al profilo locale'
+                    : 'Accedi'}
           </Text>
           <Feather name="arrow-up-right" size={18} color={colors.primaryForeground} />
         </Pressable>
 
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
-            Profili e sessione restano salvati su questo dispositivo.
+            I profili online e le attività si sincronizzano tra i dispositivi.
           </Text>
+          {!isRegistering && !verificationPending ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setLocalOnly((current) => !current);
+                setError('');
+              }}
+              style={styles.localAccess}
+            >
+              <Text style={[styles.helper, { color: colors.primary }]}>
+                {localOnly ? 'Usa l’accesso online' : 'Hai un vecchio profilo salvato su questo dispositivo?'}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       </KeyboardAwareScrollViewCompat>
     </View>
@@ -368,4 +544,6 @@ const styles = StyleSheet.create({
   submitText: { fontSize: 15, fontWeight: '700' },
   footer: { alignItems: 'center', marginTop: 18 },
   footerText: { fontSize: 12, textAlign: 'center' },
+  resendCode: { alignSelf: 'flex-start', paddingVertical: 6 },
+  localAccess: { paddingVertical: 12, paddingHorizontal: 8, marginTop: 4 },
 });

@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@clerk/expo';
+import type { AccountProfile, Activity as CloudActivity } from '@workspace/api-client-react';
 
 export type Activity = {
   id: string;
@@ -7,6 +9,7 @@ export type Activity = {
   date: string;
   location: string;
   hours: number;
+  updatedAt?: string;
 };
 
 export type StudentInput = {
@@ -43,6 +46,21 @@ type AppState = {
   role: AppRole;
   isLoaded: boolean;
   isAuthenticated: boolean;
+  cloudProfile: AccountProfile | null;
+  pendingDeletedIds: string[];
+  clearCloudProfile: () => void;
+  activateCloudProfile: (
+    profile: AccountProfile,
+    activities?: CloudActivity[],
+    deletedIds?: string[],
+  ) => Promise<void>;
+  applyCloudActivities: (
+    activities: CloudActivity[],
+    deletedIds: string[],
+    acknowledgedDeletes?: string[],
+  ) => Promise<void>;
+  hasLegacyStudent: (email: string) => boolean;
+  exportLegacyStudent: (email: string, password: string) => Student | null;
   saveStudent: (student: StudentInput) => Promise<void>;
   setRole: (role: AppRole) => Promise<void>;
   addActivity: (activity: Omit<Activity, 'id'>) => Promise<void>;
@@ -56,6 +74,7 @@ type AppState = {
 const STORAGE_KEY = '@school-activities/state';
 const AUTH_STORAGE_KEY = '@school-activities/auth';
 const PROFILES_STORAGE_KEY = '@school-activities/profiles';
+const DELETED_ACTIVITY_IDS_KEY = '@school-activities/deleted-activity-ids';
 
 const AppContext = createContext<AppState | undefined>(undefined);
 
@@ -76,9 +95,12 @@ function createLocalPasswordVerifier(email: string, password: string) {
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const { isSignedIn, signOut: clerkSignOut } = useAuth();
   const [student, setStudent] = useState<Student | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [role, setRoleState] = useState<AppRole>('student');
+  const [cloudProfile, setCloudProfile] = useState<AccountProfile | null>(null);
+  const [pendingDeletedIds, setPendingDeletedIds] = useState<string[]>([]);
   const [authEmail, setAuthEmail] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<LocalProfile[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -86,11 +108,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function restore() {
       try {
-        const [saved, savedAuth, savedProfiles] = await Promise.all([
+        const [saved, savedAuth, savedProfiles, savedDeletedIds] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEY),
           AsyncStorage.getItem(AUTH_STORAGE_KEY),
           AsyncStorage.getItem(PROFILES_STORAGE_KEY),
+          AsyncStorage.getItem(DELETED_ACTIVITY_IDS_KEY),
         ]);
+        if (savedDeletedIds) {
+          setPendingDeletedIds(JSON.parse(savedDeletedIds) as string[]);
+        }
         if (savedProfiles) {
           setProfiles(JSON.parse(savedProfiles) as LocalProfile[]);
         }
@@ -137,11 +163,137 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     void restore();
   }, []);
 
-  const persist = async (nextStudent: Student | null, nextStudents: Student[], nextRole: AppRole) => {
-    await AsyncStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ student: nextStudent, students: nextStudents, role: nextRole }),
-    );
+  const persist = async (
+    nextStudent: Student | null,
+    nextStudents: Student[],
+    nextRole: AppRole,
+    nextDeletedIds = pendingDeletedIds,
+  ) => {
+    await Promise.all([
+      AsyncStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ student: nextStudent, students: nextStudents, role: nextRole }),
+      ),
+      AsyncStorage.setItem(DELETED_ACTIVITY_IDS_KEY, JSON.stringify(nextDeletedIds)),
+    ]);
+  };
+
+  const activateCloudProfile = async (
+    profile: AccountProfile,
+    remoteActivities: CloudActivity[] = [],
+    remoteDeletedIds: string[] = [],
+  ) => {
+    await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+    setAuthEmail(null);
+    setCloudProfile(profile);
+    setRoleState(profile.role);
+    if (profile.role !== 'student') {
+      await persist(student, students, profile.role);
+      return;
+    }
+
+    const cloudStudentId = `cloud-${profile.id}`;
+    const existing = students.find((item) => item.id === cloudStudentId);
+    const mergedById = new Map<string, Activity>();
+    const deleted = new Set(remoteDeletedIds);
+    for (const item of existing?.activities ?? []) {
+      if (!deleted.has(item.id)) {
+        mergedById.set(item.id, {
+          ...item,
+          updatedAt: item.updatedAt ?? new Date().toISOString(),
+        });
+      }
+    }
+    for (const item of remoteActivities) {
+      if (deleted.has(item.id)) continue;
+      const current = mergedById.get(item.id);
+      if (!current || (item.updatedAt ?? '') >= (current.updatedAt ?? '')) {
+        mergedById.set(item.id, {
+          id: item.id,
+          title: item.title,
+          date: item.date,
+          location: item.location,
+          hours: item.hours,
+          updatedAt: item.updatedAt,
+        });
+      }
+    }
+    const nextStudent: Student = {
+      id: cloudStudentId,
+      name: profile.name,
+      className: profile.className ?? '',
+      institute: profile.institutionName,
+      activities: [...mergedById.values()].sort((a, b) => b.date.localeCompare(a.date)),
+    };
+    const nextStudents = existing
+      ? students.map((item) => (item.id === cloudStudentId ? nextStudent : item))
+      : [...students, nextStudent];
+    setStudent(nextStudent);
+    setStudents(nextStudents);
+    await persist(nextStudent, nextStudents, profile.role);
+  };
+
+  const clearCloudProfile = () => {
+    setCloudProfile(null);
+    if (!authEmail) {
+      setStudent(null);
+      setRoleState('student');
+    }
+  };
+
+  const applyCloudActivities = async (
+    cloudActivities: CloudActivity[],
+    deletedIds: string[],
+    acknowledgedDeletes: string[] = [],
+  ) => {
+    if (!student || !cloudProfile || cloudProfile.role !== 'student') return;
+    const deleted = new Set(deletedIds);
+    const mergedById = new Map<string, Activity>();
+    for (const item of student.activities) {
+      if (!deleted.has(item.id)) mergedById.set(item.id, item);
+    }
+    for (const item of cloudActivities) {
+      if (deleted.has(item.id)) continue;
+      const current = mergedById.get(item.id);
+      if (!current || (item.updatedAt ?? '') >= (current.updatedAt ?? '')) {
+        mergedById.set(item.id, {
+          id: item.id,
+          title: item.title,
+          date: item.date,
+          location: item.location,
+          hours: item.hours,
+          updatedAt: item.updatedAt,
+        });
+      }
+    }
+    const nextStudent = {
+      ...student,
+      name: cloudProfile.name,
+      className: cloudProfile.className ?? '',
+      institute: cloudProfile.institutionName,
+      activities: [...mergedById.values()].sort((a, b) => b.date.localeCompare(a.date)),
+    };
+    const nextStudents = students.map((item) => (item.id === student.id ? nextStudent : item));
+    const acknowledged = new Set(acknowledgedDeletes);
+    const nextDeletedIds = pendingDeletedIds.filter((id) => !acknowledged.has(id));
+    setStudent(nextStudent);
+    setStudents(nextStudents);
+    setPendingDeletedIds(nextDeletedIds);
+    await persist(nextStudent, nextStudents, role, nextDeletedIds);
+  };
+
+  const hasLegacyStudent = (email: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    return profiles.some((profile) => profile.email === normalizedEmail && profile.role === 'student' && Boolean(profile.studentId));
+  };
+
+  const exportLegacyStudent = (email: string, password: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const matchingProfile = profiles.find((profile) => profile.email === normalizedEmail && profile.role === 'student');
+    if (!matchingProfile || matchingProfile.passwordVerifier !== createLocalPasswordVerifier(normalizedEmail, password)) {
+      return null;
+    }
+    return students.find((item) => item.id === matchingProfile.studentId) ?? null;
   };
 
   const signIn = async (email: string, password: string) => {
@@ -159,9 +311,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (matchingProfile.passwordVerifier !== createLocalPasswordVerifier(normalizedEmail, password)) {
       return { ok: false, error: 'La password non è corretta.' };
     }
+    if (isSignedIn) await clerkSignOut();
+    setCloudProfile(null);
     const nextStudent =
-      matchingProfile.role === 'student' && matchingProfile.studentId
-        ? students.find((item) => item.id === matchingProfile.studentId) ?? student
+      matchingProfile.role === 'student'
+        ? students.find((item) => item.id === matchingProfile.studentId) ?? null
         : student;
     setStudent(nextStudent);
     setRoleState(matchingProfile.role);
@@ -188,6 +342,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (profiles.some((profile) => profile.email === normalizedEmail)) {
       return { ok: false, error: 'Esiste già un profilo con questa email su questo dispositivo.' };
     }
+    if (isSignedIn) await clerkSignOut();
+    setCloudProfile(null);
 
     let nextStudent = student;
     let nextStudents = students;
@@ -229,6 +385,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
     setAuthEmail(null);
+    setCloudProfile(null);
+    if (isSignedIn) await clerkSignOut();
   };
 
   const saveStudent = async (input: StudentInput) => {
@@ -252,7 +410,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addActivity = async (activity: Omit<Activity, 'id'>) => {
     if (!student) return;
-    const nextActivities: Activity[] = [{ ...activity, id: createId('activity') }, ...student.activities];
+    const nextActivities: Activity[] = [
+      { ...activity, id: createId('activity'), updatedAt: new Date().toISOString() },
+      ...student.activities,
+    ];
     const nextStudent = { ...student, activities: nextActivities };
     const nextStudents = students.map((item) => (item.id === student.id ? nextStudent : item));
     setStudent(nextStudent);
@@ -263,7 +424,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateActivity = async (id: string, activity: Omit<Activity, 'id'>) => {
     if (!student) return;
     const nextActivities = student.activities.map((item) =>
-      item.id === id ? { ...activity, id } : item,
+      item.id === id ? { ...activity, id, updatedAt: new Date().toISOString() } : item,
     );
     const nextStudent = { ...student, activities: nextActivities };
     const nextStudents = students.map((item) => (item.id === student.id ? nextStudent : item));
@@ -275,11 +436,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const removeActivity = async (id: string) => {
     if (!student) return;
     const nextActivities = student.activities.filter((activity) => activity.id !== id);
+    const nextDeletedIds = [...new Set([...pendingDeletedIds, id])];
     const nextStudent = { ...student, activities: nextActivities };
     const nextStudents = students.map((item) => (item.id === student.id ? nextStudent : item));
     setStudent(nextStudent);
     setStudents(nextStudents);
-    await persist(nextStudent, nextStudents, role);
+    setPendingDeletedIds(nextDeletedIds);
+    await persist(nextStudent, nextStudents, role, nextDeletedIds);
   };
 
   const value = useMemo(
@@ -289,7 +452,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       activities: student?.activities ?? [],
       role,
       isLoaded,
-      isAuthenticated: Boolean(authEmail),
+      isAuthenticated: Boolean(authEmail) || Boolean(isSignedIn),
+      cloudProfile,
+      pendingDeletedIds,
+      clearCloudProfile,
+      activateCloudProfile,
+      applyCloudActivities,
+      hasLegacyStudent,
+      exportLegacyStudent,
       saveStudent,
       setRole,
       addActivity,
@@ -299,7 +469,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       registerProfile,
       signOut,
     }),
-    [student, students, role, authEmail, profiles, isLoaded],
+    [student, students, role, authEmail, isSignedIn, cloudProfile, profiles, pendingDeletedIds, isLoaded],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

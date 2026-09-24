@@ -33,6 +33,9 @@ minimumReleaseAgeExclude:
   # this setting guards against does not apply to our own packages.
   - '@replit/*'
   - stripe-replit-sync
+  # Temporary SDK 57 Clerk token-cache dependency; remove after the 24-hour
+  # release-age window for this trusted Expo module has passed.
+  - expo-secure-store
 
 packages:
   - artifacts/*

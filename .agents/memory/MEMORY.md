@@ -1,0 +1,1 @@
+- [Clerk proxy in Expo production](clerk-expo-proxy.md) — published bundles must target the API's proxy; development uses direct Clerk requests.
