@@ -281,37 +281,45 @@ export default function LoginScreen() {
 
             {role === 'student' ? (
               <>
-                {renderTextInputField({
-                  label: 'Istituto',
-                  value: institute,
-                  onChangeText: setInstitute,
-                  placeholder: 'Es. Liceo Leonardo da Vinci',
-                  accessibilityLabel: 'Istituto',
-                })}
-                {renderTextInputField({
-                  label: 'Codice classe',
-                  value: classCode,
-                  onChangeText: setClassCode,
-                  placeholder: 'Es. CLASS-8A3F...',
-                  accessibilityLabel: 'Codice classe',
-                })}
+                <RegistrationTextInputField
+                  label="Istituto"
+                  value={institute}
+                  onChangeText={setInstitute}
+                  placeholder="Es. Liceo Leonardo da Vinci"
+                  accessibilityLabel="Istituto"
+                  colors={colors}
+                  onFocus={() => setError('')}
+                />
+                <RegistrationTextInputField
+                  label="Codice classe"
+                  value={classCode}
+                  onChangeText={setClassCode}
+                  placeholder="Es. CLASS-8A3F..."
+                  accessibilityLabel="Codice classe"
+                  colors={colors}
+                  onFocus={() => setError('')}
+                />
               </>
             ) : (
               <>
-                {renderTextInputField({
-                  label: 'Istituto',
-                  value: institute,
-                  onChangeText: setInstitute,
-                  placeholder: 'Es. Liceo Leonardo da Vinci',
-                  accessibilityLabel: 'Istituto',
-                })}
-                {renderTextInputField({
-                  label: 'Codice insegnante (facoltativo)',
-                  value: teacherCode,
-                  onChangeText: setTeacherCode,
-                  placeholder: 'Se un collega ti ha invitato',
-                  accessibilityLabel: 'Codice insegnante',
-                })}
+                <RegistrationTextInputField
+                  label="Istituto"
+                  value={institute}
+                  onChangeText={setInstitute}
+                  placeholder="Es. Liceo Leonardo da Vinci"
+                  accessibilityLabel="Istituto"
+                  colors={colors}
+                  onFocus={() => setError('')}
+                />
+                <RegistrationTextInputField
+                  label="Codice insegnante (facoltativo)"
+                  value={teacherCode}
+                  onChangeText={setTeacherCode}
+                  placeholder="Se un collega ti ha invitato"
+                  accessibilityLabel="Codice insegnante"
+                  colors={colors}
+                  onFocus={() => setError('')}
+                />
                 <Text style={[styles.helper, { color: colors.mutedForeground, marginBottom: 14 }]}>
                   Senza codice creerai un nuovo istituto e riceverai un codice da condividere con i colleghi.
                 </Text>
@@ -489,35 +497,6 @@ export default function LoginScreen() {
     );
   }
 
-  function renderTextInputField({
-    label,
-    value,
-    onChangeText,
-    placeholder,
-    accessibilityLabel,
-  }: {
-    label: string;
-    value: string;
-    onChangeText: (value: string) => void;
-    placeholder: string;
-    accessibilityLabel: string;
-  }) {
-    return (
-      <>
-        <Text style={[styles.label, { color: colors.foreground }]}>{label}</Text>
-        <TextInput
-          accessibilityLabel={accessibilityLabel}
-          autoCapitalize="characters"
-          onChangeText={onChangeText}
-          onFocus={() => setError('')}
-          placeholder={placeholder}
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, inputStyle]}
-          value={value}
-        />
-      </>
-    );
-  }
 }
 
 const styles = StyleSheet.create({
@@ -557,3 +536,46 @@ const styles = StyleSheet.create({
   resendCode: { alignSelf: 'flex-start', paddingVertical: 6 },
   localAccess: { paddingVertical: 12, paddingHorizontal: 8, marginTop: 4 },
 });
+
+type RegistrationTextInputFieldProps = {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  accessibilityLabel: string;
+  colors: ReturnType<typeof useColors>;
+  onFocus: () => void;
+};
+
+function RegistrationTextInputField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  accessibilityLabel,
+  colors,
+  onFocus,
+}: RegistrationTextInputFieldProps) {
+  return (
+    <>
+      <Text style={[styles.label, { color: colors.foreground }]}>{label}</Text>
+      <TextInput
+        accessibilityLabel={accessibilityLabel}
+        autoCapitalize="characters"
+        onChangeText={onChangeText}
+        onFocus={onFocus}
+        placeholder={placeholder}
+        placeholderTextColor={colors.mutedForeground}
+        style={[
+          styles.input,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            color: colors.foreground,
+          },
+        ]}
+        value={value}
+      />
+    </>
+  );
+}
