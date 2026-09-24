@@ -30,15 +30,19 @@ type AppState = {
   activities: Activity[];
   role: AppRole;
   isLoaded: boolean;
+  isAuthenticated: boolean;
   saveStudent: (student: StudentInput) => Promise<void>;
   addStudent: (student: TeacherStudentInput) => Promise<void>;
   setRole: (role: AppRole) => Promise<void>;
   addActivity: (activity: Omit<Activity, 'id'>) => Promise<void>;
   updateActivity: (id: string, activity: Omit<Activity, 'id'>) => Promise<void>;
   removeActivity: (id: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  signOut: () => Promise<void>;
 };
 
 const STORAGE_KEY = '@school-activities/state';
+const AUTH_STORAGE_KEY = '@school-activities/auth';
 
 const AppContext = createContext<AppState | undefined>(undefined);
 
@@ -50,12 +54,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [student, setStudent] = useState<Student | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [role, setRoleState] = useState<AppRole>('student');
+  const [authEmail, setAuthEmail] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     async function restore() {
       try {
-        const saved = await AsyncStorage.getItem(STORAGE_KEY);
+        const [saved, savedAuth] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEY),
+          AsyncStorage.getItem(AUTH_STORAGE_KEY),
+        ]);
+        if (savedAuth) {
+          const parsedAuth = JSON.parse(savedAuth) as { email?: string };
+          setAuthEmail(parsedAuth.email ?? null);
+        }
         if (saved) {
           const parsed = JSON.parse(saved) as {
             student?: Partial<Student> | null;
@@ -100,6 +112,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       STORAGE_KEY,
       JSON.stringify({ student: nextStudent, students: nextStudents, role: nextRole }),
     );
+  };
+
+  const signIn = async (email: string, password: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail.includes('@')) {
+      return { ok: false, error: 'Inserisci un indirizzo email valido.' };
+    }
+    if (password.length < 6) {
+      return { ok: false, error: 'La password deve contenere almeno 6 caratteri.' };
+    }
+    await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ email: normalizedEmail }));
+    setAuthEmail(normalizedEmail);
+    return { ok: true };
+  };
+
+  const signOut = async () => {
+    await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+    setAuthEmail(null);
   };
 
   const saveStudent = async (input: StudentInput) => {
@@ -173,14 +203,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       activities: student?.activities ?? [],
       role,
       isLoaded,
+      isAuthenticated: Boolean(authEmail),
       saveStudent,
       addStudent,
       setRole,
       addActivity,
       updateActivity,
       removeActivity,
+      signIn,
+      signOut,
     }),
-    [student, students, role, isLoaded],
+    [student, students, role, authEmail, isLoaded],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
