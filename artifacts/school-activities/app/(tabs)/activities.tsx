@@ -133,9 +133,9 @@ function ActivityModal({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={[styles.inputLabel, { color: colors.foreground }]}>Nome attività</Text>
+          <Text style={[styles.inputLabel, { color: colors.foreground }]}>Tipologia attività</Text>
           <TextInput
-            accessibilityLabel="Nome attività"
+            accessibilityLabel="Tipologia attività"
             onChangeText={setTitle}
             placeholder="Es. Laboratorio di robotica"
             placeholderTextColor={colors.mutedForeground}
