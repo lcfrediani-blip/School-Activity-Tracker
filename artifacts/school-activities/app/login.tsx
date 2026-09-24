@@ -247,24 +247,24 @@ export default function LoginScreen() {
           <View style={styles.registerFields}>
             <Text style={[styles.fieldHeading, { color: colors.foreground }]}>Sei un allievo o un insegnante?</Text>
             <View style={styles.roleRow}>
-              <RoleCard
-                icon="user"
-                label="Allievo"
-                selected={role === 'student'}
-                onPress={() => {
+              {renderRoleCard({
+                icon: 'user',
+                label: 'Allievo',
+                selected: role === 'student',
+                onPress: () => {
                   setRole('student');
                   setError('');
-                }}
-              />
-              <RoleCard
-                icon="users"
-                label="Insegnante"
-                selected={role === 'teacher'}
-                onPress={() => {
+                },
+              })}
+              {renderRoleCard({
+                icon: 'users',
+                label: 'Insegnante',
+                selected: role === 'teacher',
+                onPress: () => {
                   setRole('teacher');
                   setError('');
-                }}
-              />
+                },
+              })}
             </View>
 
             <Text style={[styles.label, { color: colors.foreground }]}>Nome e cognome</Text>
@@ -281,37 +281,37 @@ export default function LoginScreen() {
 
             {role === 'student' ? (
               <>
-                <TextInputField
-                  label="Istituto"
-                  value={institute}
-                  onChangeText={setInstitute}
-                  placeholder="Es. Liceo Leonardo da Vinci"
-                  accessibilityLabel="Istituto"
-                />
-                <TextInputField
-                  label="Codice classe"
-                  value={classCode}
-                  onChangeText={setClassCode}
-                  placeholder="Es. CLASS-8A3F..."
-                  accessibilityLabel="Codice classe"
-                />
+                {renderTextInputField({
+                  label: 'Istituto',
+                  value: institute,
+                  onChangeText: setInstitute,
+                  placeholder: 'Es. Liceo Leonardo da Vinci',
+                  accessibilityLabel: 'Istituto',
+                })}
+                {renderTextInputField({
+                  label: 'Codice classe',
+                  value: classCode,
+                  onChangeText: setClassCode,
+                  placeholder: 'Es. CLASS-8A3F...',
+                  accessibilityLabel: 'Codice classe',
+                })}
               </>
             ) : (
               <>
-                <TextInputField
-                  label="Istituto"
-                  value={institute}
-                  onChangeText={setInstitute}
-                  placeholder="Es. Liceo Leonardo da Vinci"
-                  accessibilityLabel="Istituto"
-                />
-                <TextInputField
-                  label="Codice insegnante (facoltativo)"
-                  value={teacherCode}
-                  onChangeText={setTeacherCode}
-                  placeholder="Se un collega ti ha invitato"
-                  accessibilityLabel="Codice insegnante"
-                />
+                {renderTextInputField({
+                  label: 'Istituto',
+                  value: institute,
+                  onChangeText: setInstitute,
+                  placeholder: 'Es. Liceo Leonardo da Vinci',
+                  accessibilityLabel: 'Istituto',
+                })}
+                {renderTextInputField({
+                  label: 'Codice insegnante (facoltativo)',
+                  value: teacherCode,
+                  onChangeText: setTeacherCode,
+                  placeholder: 'Se un collega ti ha invitato',
+                  accessibilityLabel: 'Codice insegnante',
+                })}
                 <Text style={[styles.helper, { color: colors.mutedForeground, marginBottom: 14 }]}>
                   Senza codice creerai un nuovo istituto e riceverai un codice da condividere con i colleghi.
                 </Text>
@@ -449,7 +449,7 @@ export default function LoginScreen() {
     </View>
   );
 
-  function RoleCard({
+  function renderRoleCard({
     icon,
     label,
     selected,
@@ -489,7 +489,7 @@ export default function LoginScreen() {
     );
   }
 
-  function TextInputField({
+  function renderTextInputField({
     label,
     value,
     onChangeText,
