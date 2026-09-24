@@ -143,8 +143,12 @@ router.put("/account/profile", requireAuth, async (req, res) => {
     return;
   }
   const profile = (await currentUser(req as AuthenticatedRequest))[0];
-  if (!profile || profile.role !== "student") {
-    res.status(403).json({ error: "Solo gli studenti possono modificare questo profilo." });
+  if (!profile) {
+    res.status(404).json({ error: "Profile not found." });
+    return;
+  }
+  if (profile.role === "student" && !input.data.className?.trim()) {
+    res.status(400).json({ error: "Indica la classe frequentata." });
     return;
   }
   const institution = await findOrCreateInstitution(input.data.institutionName, profile.clerkUserId);
@@ -152,9 +156,10 @@ router.put("/account/profile", requireAuth, async (req, res) => {
     .update(accountProfiles)
     .set({
       name: input.data.name.trim(),
-      className: input.data.className.trim(),
-      classId: null,
       instituteId: institution.id,
+      ...(profile.role === "student"
+        ? { className: input.data.className!.trim(), classId: null }
+        : {}),
       updatedAt: new Date(),
     })
     .where(eq(accountProfiles.id, profile.id));

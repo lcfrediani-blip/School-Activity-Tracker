@@ -209,19 +209,30 @@ export default function TeacherScreen() {
                 <Text style={[styles.pageTitle, { color: colors.foreground }]}>Monitoraggio</Text>
               </View>
               {isCloudTeacher ? (
-                <Pressable
-                  accessibilityLabel={refreshing ? 'Aggiornamento in corso' : 'Aggiorna monitoraggio'}
-                  accessibilityRole="button"
-                  disabled={refreshing}
-                  hitSlop={8}
-                  onPress={() => void refreshMonitoring()}
-                  style={[
-                    styles.refreshButton,
-                    { backgroundColor: colors.card, borderColor: colors.border, opacity: refreshing ? 0.6 : 1 },
-                  ]}
-                >
-                  <Feather name="refresh-cw" size={18} color={colors.primary} />
-                </Pressable>
+                <View style={styles.headerActions}>
+                  <Pressable
+                    accessibilityLabel="Modifica profilo docente"
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    onPress={() => router.push('/teacher-profile')}
+                    style={[styles.headerActionButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  >
+                    <Feather name="user" size={18} color={colors.primary} />
+                  </Pressable>
+                  <Pressable
+                    accessibilityLabel={refreshing ? 'Aggiornamento in corso' : 'Aggiorna monitoraggio'}
+                    accessibilityRole="button"
+                    disabled={refreshing}
+                    hitSlop={8}
+                    onPress={() => void refreshMonitoring()}
+                    style={[
+                      styles.headerActionButton,
+                      { backgroundColor: colors.card, borderColor: colors.border, opacity: refreshing ? 0.6 : 1 },
+                    ]}
+                  >
+                    <Feather name="refresh-cw" size={18} color={colors.primary} />
+                  </Pressable>
+                </View>
               ) : null}
             </View>
             {isCloudTeacher ? (
@@ -327,7 +338,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   pageHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 22 },
   headerCopy: { flex: 1, marginLeft: 15 },
-  refreshButton: { width: 42, height: 42, borderWidth: 1, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginLeft: 10 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerActionButton: { width: 42, height: 42, borderWidth: 1, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   eyebrow: { fontSize: 10, fontWeight: '700', letterSpacing: 1.45, marginBottom: 5 },
   pageTitle: { fontSize: 30, fontWeight: '700', letterSpacing: -1 },
   summaryCard: { borderRadius: 18, padding: 15, marginBottom: 12, flexDirection: 'row' },

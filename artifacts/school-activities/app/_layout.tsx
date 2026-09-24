@@ -40,6 +40,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerBackTitle: 'Back' }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="teacher" options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="teacher-profile" options={{ headerShown: false, presentation: 'card' }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
     </Stack>

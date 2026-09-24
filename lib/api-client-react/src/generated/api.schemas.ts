@@ -35,8 +35,11 @@ export interface AccountProfileInput {
 export interface AccountProfileUpdateInput {
   /** @minLength 1 */
   name: string;
-  /** @minLength 1 */
-  className: string;
+  /**
+     * Required for students; omitted for teachers.
+     * @minLength 1
+     */
+  className?: string;
   /** @minLength 1 */
   institutionName: string;
 }

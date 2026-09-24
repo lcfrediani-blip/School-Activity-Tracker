@@ -64,8 +64,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AccountProfile" }
-        "403":
-          description: Student access required
+        "404":
+          description: Profile not found
     get:
       operationId: getAccountProfile
       tags: [account]
@@ -167,10 +167,13 @@ components:
           description: Required for teacher registration.
     AccountProfileUpdateInput:
       type: object
-      required: [name, className, institutionName]
+      required: [name, institutionName]
       properties:
         name: { type: string, minLength: 1 }
-        className: { type: string, minLength: 1 }
+        className:
+          type: string
+          minLength: 1
+          description: Required for students; omitted for teachers.
         institutionName: { type: string, minLength: 1 }
     AccountProfile:
       type: object

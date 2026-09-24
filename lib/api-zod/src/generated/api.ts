@@ -49,7 +49,7 @@ export const CreateAccountProfileResponse = zod.object({
 
 export const UpdateAccountProfileBody = zod.object({
   "name": zod.string().min(1),
-  "className": zod.string().min(1),
+  "className": zod.string().min(1).optional().describe('Required for students; omitted for teachers.'),
   "institutionName": zod.string().min(1)
 })
 
