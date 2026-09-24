@@ -24,6 +24,18 @@ export type Student = StudentInput & {
 
 export type AppRole = 'student' | 'teacher';
 
+export type LocalProfileInput = {
+  email: string;
+  name: string;
+  role: AppRole;
+  className?: string;
+  institute: string;
+};
+
+type LocalProfile = LocalProfileInput & {
+  studentId?: string;
+};
+
 type AppState = {
   student: Student | null;
   students: Student[];
@@ -38,11 +50,13 @@ type AppState = {
   updateActivity: (id: string, activity: Omit<Activity, 'id'>) => Promise<void>;
   removeActivity: (id: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  registerProfile: (profile: LocalProfileInput) => Promise<{ ok: boolean; error?: string }>;
   signOut: () => Promise<void>;
 };
 
 const STORAGE_KEY = '@school-activities/state';
 const AUTH_STORAGE_KEY = '@school-activities/auth';
+const PROFILES_STORAGE_KEY = '@school-activities/profiles';
 
 const AppContext = createContext<AppState | undefined>(undefined);
 
@@ -55,15 +69,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [students, setStudents] = useState<Student[]>([]);
   const [role, setRoleState] = useState<AppRole>('student');
   const [authEmail, setAuthEmail] = useState<string | null>(null);
+  const [profiles, setProfiles] = useState<LocalProfile[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     async function restore() {
       try {
-        const [saved, savedAuth] = await Promise.all([
+        const [saved, savedAuth, savedProfiles] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEY),
           AsyncStorage.getItem(AUTH_STORAGE_KEY),
+          AsyncStorage.getItem(PROFILES_STORAGE_KEY),
         ]);
+        if (savedProfiles) {
+          setProfiles(JSON.parse(savedProfiles) as LocalProfile[]);
+        }
         if (savedAuth) {
           const parsedAuth = JSON.parse(savedAuth) as { email?: string };
           setAuthEmail(parsedAuth.email ?? null);
@@ -122,8 +141,69 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (password.length < 6) {
       return { ok: false, error: 'La password deve contenere almeno 6 caratteri.' };
     }
+    const matchingProfile = profiles.find((profile) => profile.email === normalizedEmail);
+    if (!matchingProfile) {
+      return { ok: false, error: 'Non troviamo un profilo su questo dispositivo. Creane uno per continuare.' };
+    }
+    const nextStudent =
+      matchingProfile.role === 'student' && matchingProfile.studentId
+        ? students.find((item) => item.id === matchingProfile.studentId) ?? student
+        : student;
+    setStudent(nextStudent);
+    setRoleState(matchingProfile.role);
+    await persist(nextStudent, students, matchingProfile.role);
     await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ email: normalizedEmail }));
     setAuthEmail(normalizedEmail);
+    return { ok: true };
+  };
+
+  const registerProfile = async (input: LocalProfileInput) => {
+    const normalizedEmail = input.email.trim().toLowerCase();
+    if (!normalizedEmail.includes('@')) {
+      return { ok: false, error: 'Inserisci un indirizzo email valido.' };
+    }
+    if (!input.name.trim() || !input.institute.trim()) {
+      return { ok: false, error: 'Completa tutti i campi richiesti.' };
+    }
+    if (input.role === 'student' && !input.className?.trim()) {
+      return { ok: false, error: 'Indica la classe frequentata.' };
+    }
+    if (profiles.some((profile) => profile.email === normalizedEmail)) {
+      return { ok: false, error: 'Esiste già un profilo con questa email su questo dispositivo.' };
+    }
+
+    let nextStudent = student;
+    let nextStudents = students;
+    let newProfile: LocalProfile = {
+      ...input,
+      email: normalizedEmail,
+      name: input.name.trim(),
+      institute: input.institute.trim(),
+    };
+
+    if (input.role === 'student') {
+      nextStudent = {
+        id: createId('student'),
+        name: input.name.trim(),
+        className: input.className?.trim() ?? '',
+        institute: input.institute.trim(),
+        activities: [],
+      };
+      nextStudents = [...students, nextStudent];
+      newProfile = { ...newProfile, studentId: nextStudent.id };
+      setStudent(nextStudent);
+      setStudents(nextStudents);
+    }
+
+    const nextProfiles = [...profiles, newProfile];
+    setProfiles(nextProfiles);
+    setRoleState(input.role);
+    setAuthEmail(normalizedEmail);
+    await Promise.all([
+      AsyncStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(nextProfiles)),
+      AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ email: normalizedEmail })),
+      persist(nextStudent, nextStudents, input.role),
+    ]);
     return { ok: true };
   };
 
@@ -211,9 +291,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateActivity,
       removeActivity,
       signIn,
+      registerProfile,
       signOut,
     }),
-    [student, students, role, authEmail, isLoaded],
+    [student, students, role, authEmail, profiles, isLoaded],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
