@@ -83,12 +83,12 @@ function StudentDetail({ student }: { student: Student }) {
 export default function TeacherScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { students, setRole, isAuthenticated, role } = useApp();
+  const { students, isAuthenticated, role, signOut } = useApp();
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
-  const exitTeacherMode = async () => {
-    await setRole('student');
-    router.back();
+  const logout = async () => {
+    await signOut();
+    router.replace('/login');
   };
 
   if (!isAuthenticated) return <Redirect href="/login" />;
@@ -114,8 +114,8 @@ export default function TeacherScreen() {
         ListHeaderComponent={
           <View>
             <View style={styles.pageHeader}>
-              <Pressable accessibilityLabel="Torna indietro" hitSlop={10} onPress={() => void exitTeacherMode()}>
-                <Feather name="arrow-left" size={22} color={colors.foreground} />
+              <Pressable accessibilityLabel="Esci dall'account" hitSlop={10} onPress={() => void logout()}>
+                <Feather name="log-out" size={20} color={colors.foreground} />
               </Pressable>
               <View style={styles.headerCopy}>
                 <Text style={[styles.eyebrow, { color: colors.primary }]}>AREA PROFESSORE</Text>
