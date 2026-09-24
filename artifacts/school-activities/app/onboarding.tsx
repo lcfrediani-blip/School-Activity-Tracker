@@ -81,6 +81,10 @@ export default function OnboardingScreen() {
         setError('Inserisci il codice della classe fornito dall’insegnante.');
         return;
       }
+      if (role === 'student' && !institutionName.trim()) {
+        setError('Indica il nome dell’istituto frequentato.');
+        return;
+      }
       if (role === 'teacher' && !institutionName.trim() && !teacherCode.trim()) {
         setError('Indica il nome dell’istituto oppure inserisci il codice ricevuto da un collega.');
         return;
@@ -111,7 +115,10 @@ export default function OnboardingScreen() {
           role,
           name: name.trim(),
           ...(role === 'student'
-            ? { classCode: classCode.trim().toUpperCase() }
+            ? {
+                classCode: classCode.trim().toUpperCase(),
+                institutionName: institutionName.trim(),
+              }
             : {
                 ...(teacherCode.trim() ? { teacherCode: teacherCode.trim().toUpperCase() } : {}),
                 ...(institutionName.trim() ? { institutionName: institutionName.trim() } : {}),
@@ -220,6 +227,16 @@ export default function OnboardingScreen() {
 
       {role === 'student' ? (
         <>
+          <Text style={[styles.label, { color: colors.foreground }]}>Istituto</Text>
+          <TextInput
+            accessibilityLabel="Istituto"
+            autoCapitalize="words"
+            onChangeText={setInstitutionName}
+            placeholder="Nome dell’istituto frequentato"
+            placeholderTextColor={colors.mutedForeground}
+            style={[styles.input, inputStyle]}
+            value={institutionName}
+          />
           <Text style={[styles.label, { color: colors.foreground }]}>Codice classe</Text>
           <TextInput
             accessibilityLabel="Codice classe"

@@ -122,17 +122,18 @@ export default function LoginScreen() {
           setError('Inserisci il codice della classe fornito dall’insegnante.');
           return;
         }
+        if (role === 'student' && !institute.trim()) {
+          setError('Indica il nome dell’istituto frequentato.');
+          return;
+        }
         if (role === 'teacher' && !institute.trim()) {
           setError('Indica il nome dell’istituto.');
           return;
         }
         await savePendingProfile();
-        const names = name.trim().split(/\s+/);
         const { error: signUpError } = await signUpFlow.password({
           emailAddress: email.trim(),
           password,
-          firstName: names[0],
-          lastName: names.slice(1).join(' ') || undefined,
         });
         if (signUpError) {
           setError(signUpError.message || 'Non è stato possibile creare l’account.');
@@ -279,13 +280,22 @@ export default function LoginScreen() {
             />
 
             {role === 'student' ? (
-              <TextInputField
-                label="Codice classe"
-                value={classCode}
-                onChangeText={setClassCode}
-                placeholder="Es. CLASS-8A3F..."
-                accessibilityLabel="Codice classe"
-              />
+              <>
+                <TextInputField
+                  label="Istituto"
+                  value={institute}
+                  onChangeText={setInstitute}
+                  placeholder="Es. Liceo Leonardo da Vinci"
+                  accessibilityLabel="Istituto"
+                />
+                <TextInputField
+                  label="Codice classe"
+                  value={classCode}
+                  onChangeText={setClassCode}
+                  placeholder="Es. CLASS-8A3F..."
+                  accessibilityLabel="Codice classe"
+                />
+              </>
             ) : (
               <>
                 <TextInputField

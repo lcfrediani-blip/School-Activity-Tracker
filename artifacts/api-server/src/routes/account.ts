@@ -68,6 +68,10 @@ router.post("/account/profile", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Students must join using a class code." });
       return;
     }
+    if (!body.institutionName?.trim()) {
+      res.status(400).json({ error: "Indica il nome dell’istituto frequentato." });
+      return;
+    }
     const found = await db.select({ institution: institutions, classRow: classes })
       .from(classes).innerJoin(institutions, eq(classes.institutionId, institutions.id))
       .where(eq(classes.joinCode, body.classCode.trim().toUpperCase())).limit(1);
@@ -75,6 +79,10 @@ router.post("/account/profile", requireAuth, async (req, res) => {
     classRow = found[0]?.classRow;
     if (!institution || !classRow) {
       res.status(404).json({ error: "Class code not found." });
+      return;
+    }
+    if (normalized(body.institutionName) !== institution.normalizedName) {
+      res.status(400).json({ error: "Il nome dell’istituto non corrisponde al codice classe." });
       return;
     }
   } else if (body.teacherCode?.trim()) {

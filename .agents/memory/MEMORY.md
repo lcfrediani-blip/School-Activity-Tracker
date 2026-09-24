@@ -1,1 +1,1 @@
-- [Clerk proxy in Expo production](clerk-expo-proxy.md) — published bundles must target the API's proxy; development uses direct Clerk requests.
+- [Managed Clerk Expo proxy](clerk-expo-proxy.md) — forward the managed proxy variable; it is empty in development and must not be hardcoded.
