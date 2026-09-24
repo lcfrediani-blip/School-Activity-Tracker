@@ -21,9 +21,24 @@ export interface AccountProfileInput {
   role: AccountProfileInputRole;
   /** @minLength 1 */
   name: string;
-  classCode?: string;
-  teacherCode?: string;
-  institutionName?: string;
+  /** @minLength 1 */
+  institutionName: string;
+  /**
+     * Required for students; not used for teachers.
+     * @minLength 1
+     */
+  className?: string;
+  /** Required for teacher registration. */
+  teacherInviteCode?: string;
+}
+
+export interface AccountProfileUpdateInput {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  className: string;
+  /** @minLength 1 */
+  institutionName: string;
 }
 
 export type AccountProfileRole = typeof AccountProfileRole[keyof typeof AccountProfileRole];
@@ -43,11 +58,7 @@ export interface AccountProfile {
   institutionId: string;
   institutionName: string;
   /** @nullable */
-  classId?: string | null;
-  /** @nullable */
   className?: string | null;
-  /** @nullable */
-  teacherCode?: string | null;
 }
 
 export interface Activity {
@@ -71,16 +82,10 @@ export interface StudentSyncResponse {
   deletedIds: string[];
 }
 
-export interface ClassInput {
-  /** @minLength 1 */
-  name: string;
-}
-
-export interface Class {
-  id: string;
-  name: string;
-  joinCode: string;
-  institutionId: string;
+export interface TeacherStats {
+  totalStudents: number;
+  totalActivities: number;
+  totalHours: number;
 }
 
 export interface StudentSummary {
@@ -89,6 +94,7 @@ export interface StudentSummary {
   email: string;
   /** @nullable */
   className: string | null;
+  institutionName: string;
   activitiesCount: number;
   totalHours: number;
 }

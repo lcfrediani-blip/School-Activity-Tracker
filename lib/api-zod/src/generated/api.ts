@@ -20,12 +20,14 @@ export const HealthCheckResponse = zod.object({
 
 
 
+
+
 export const CreateAccountProfileBody = zod.object({
   "role": zod.enum(['student', 'teacher']),
   "name": zod.string().min(1),
-  "classCode": zod.string().optional(),
-  "teacherCode": zod.string().optional(),
-  "institutionName": zod.string().optional()
+  "institutionName": zod.string().min(1),
+  "className": zod.string().min(1).optional().describe('Required for students; not used for teachers.'),
+  "teacherInviteCode": zod.string().optional().describe('Required for teacher registration.')
 })
 
 export const CreateAccountProfileResponse = zod.object({
@@ -36,9 +38,30 @@ export const CreateAccountProfileResponse = zod.object({
   "email": zod.string(),
   "institutionId": zod.string(),
   "institutionName": zod.string(),
-  "classId": zod.string().nullish(),
-  "className": zod.string().nullish(),
-  "teacherCode": zod.string().nullish()
+  "className": zod.string().nullish()
+})
+
+
+
+
+
+
+
+export const UpdateAccountProfileBody = zod.object({
+  "name": zod.string().min(1),
+  "className": zod.string().min(1),
+  "institutionName": zod.string().min(1)
+})
+
+export const UpdateAccountProfileResponse = zod.object({
+  "id": zod.string(),
+  "clerkUserId": zod.string(),
+  "role": zod.enum(['student', 'teacher']),
+  "name": zod.string(),
+  "email": zod.string(),
+  "institutionId": zod.string(),
+  "institutionName": zod.string(),
+  "className": zod.string().nullish()
 })
 
 
@@ -50,9 +73,7 @@ export const GetAccountProfileResponse = zod.object({
   "email": zod.string(),
   "institutionId": zod.string(),
   "institutionName": zod.string(),
-  "classId": zod.string().nullish(),
-  "className": zod.string().nullish(),
-  "teacherCode": zod.string().nullish()
+  "className": zod.string().nullish()
 })
 
 
@@ -91,27 +112,10 @@ export const SyncStudentDataResponse = zod.object({
 })
 
 
-export const ListTeacherClassesResponseItem = zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "joinCode": zod.string(),
-  "institutionId": zod.string()
-})
-export const ListTeacherClassesResponse = zod.array(ListTeacherClassesResponseItem)
-
-
-
-
-
-export const CreateTeacherClassBody = zod.object({
-  "name": zod.string().min(1)
-})
-
-export const CreateTeacherClassResponse = zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "joinCode": zod.string(),
-  "institutionId": zod.string()
+export const GetTeacherStatsResponse = zod.object({
+  "totalStudents": zod.number().int(),
+  "totalActivities": zod.number().int(),
+  "totalHours": zod.number()
 })
 
 
@@ -126,6 +130,7 @@ export const SearchTeacherStudentsResponseItem = zod.object({
   "name": zod.string(),
   "email": zod.string(),
   "className": zod.string().nullable(),
+  "institutionName": zod.string(),
   "activitiesCount": zod.number().int(),
   "totalHours": zod.number()
 })
@@ -146,6 +151,7 @@ export const GetTeacherStudentResponse = zod.object({
   "name": zod.string(),
   "email": zod.string(),
   "className": zod.string().nullable(),
+  "institutionName": zod.string(),
   "activitiesCount": zod.number().int(),
   "totalHours": zod.number()
 }).and(zod.object({
@@ -158,5 +164,3 @@ export const GetTeacherStudentResponse = zod.object({
   "updatedAt": zod.coerce.date()
 }))
 }))
-
-

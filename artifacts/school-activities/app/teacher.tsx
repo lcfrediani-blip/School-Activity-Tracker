@@ -10,12 +10,11 @@ import {
   View,
 } from 'react-native';
 import {
-  useCreateTeacherClass,
   getGetTeacherStudentQueryKey,
-  getListTeacherClassesQueryKey,
+  getGetTeacherStatsQueryKey,
   getSearchTeacherStudentsQueryKey,
   useGetTeacherStudent,
-  useListTeacherClasses,
+  useGetTeacherStats,
   useSearchTeacherStudents,
 } from '@workspace/api-client-react';
 import { useApp, type Student } from '@/context/AppContext';
@@ -66,6 +65,9 @@ function StudentDetail({ student }: { student: Student }) {
         <View>
           <Text style={[styles.detailEyebrow, { color: colors.primaryForeground }]}>DETTAGLIO ALUNNO</Text>
           <Text style={[styles.detailName, { color: colors.primaryForeground }]}>{student.name}</Text>
+          <Text style={[styles.detailMeta, { color: colors.primaryForeground }]}>
+            {[student.className, student.institute].filter(Boolean).join(' · ')}
+          </Text>
         </View>
         <View style={[styles.detailTotal, { backgroundColor: colors.primaryForeground }]}>
           <Text style={[styles.detailTotalNumber, { color: colors.primary }]}>{totalHours}h</Text>
@@ -98,8 +100,6 @@ export default function TeacherScreen() {
   const [selectedCloudStudentId, setSelectedCloudStudentId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const [search, setSearch] = useState('');
-  const [className, setClassName] = useState('');
-  const [classError, setClassError] = useState('');
   const isCloudTeacher = cloudProfile?.role === 'teacher';
   const studentQuery = useSearchTeacherStudents(
     { search },
@@ -110,9 +110,9 @@ export default function TeacherScreen() {
       },
     },
   );
-  const classQuery = useListTeacherClasses({
+  const statsQuery = useGetTeacherStats({
     query: {
-      queryKey: [...getListTeacherClassesQueryKey(), cloudProfile?.clerkUserId ?? 'local'],
+      queryKey: [...getGetTeacherStatsQueryKey(), cloudProfile?.clerkUserId ?? 'local'],
       enabled: isCloudTeacher,
     },
   });
@@ -125,8 +125,6 @@ export default function TeacherScreen() {
       enabled: isCloudTeacher && Boolean(selectedCloudStudentId),
     },
   });
-  const createClass = useCreateTeacherClass();
-
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchText.trim()), 250);
     return () => clearTimeout(timer);
@@ -137,6 +135,7 @@ export default function TeacherScreen() {
     name: item.name,
     email: item.email,
     className: item.className,
+    institutionName: item.institutionName,
     activitiesCount: item.activitiesCount,
     totalHours: item.totalHours,
   }));
@@ -146,7 +145,7 @@ export default function TeacherScreen() {
         id: detailQuery.data.id,
         name: detailQuery.data.name,
         className: detailQuery.data.className ?? '',
-        institute: cloudProfile?.institutionName ?? '',
+        institute: detailQuery.data.institutionName,
         activities: detailQuery.data.activities,
       }
     : null;
@@ -158,21 +157,6 @@ export default function TeacherScreen() {
 
   if (!isAuthenticated) return <Redirect href="/login" />;
   if (role !== 'teacher') return <Redirect href="/(tabs)" />;
-
-  const addClass = async () => {
-    if (!className.trim()) {
-      setClassError('Inserisci il nome della classe.');
-      return;
-    }
-    setClassError('');
-    try {
-      await createClass.mutateAsync({ data: { name: className.trim() } });
-      setClassName('');
-      await classQuery.refetch();
-    } catch (error) {
-      setClassError(error instanceof Error ? error.message : 'Non è stato possibile creare la classe.');
-    }
-  };
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -190,7 +174,7 @@ export default function TeacherScreen() {
             </Text>
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
               {isCloudTeacher
-                ? 'Gli alunni del tuo istituto compariranno qui. Usa un codice classe per farli iscrivere.'
+                ? 'Gli alunni registrati compariranno qui, indipendentemente dall’istituto o dalla classe.'
                 : 'Qui compaiono i profili salvati su questo dispositivo.'}
             </Text>
           </View>
@@ -206,46 +190,35 @@ export default function TeacherScreen() {
                 <Text style={[styles.pageTitle, { color: colors.foreground }]}>Monitoraggio</Text>
               </View>
             </View>
-            {isCloudTeacher && cloudProfile?.teacherCode ? (
-              <View style={[styles.teacherCodeCard, { backgroundColor: colors.accent }]}>
-                <Text style={[styles.codeEyebrow, { color: colors.primary }]}>CODICE INSEGNANTE</Text>
-                <Text selectable style={[styles.teacherCode, { color: colors.foreground }]}>{cloudProfile.teacherCode}</Text>
-                <Text style={[styles.codeHint, { color: colors.mutedForeground }]}>
-                  Condividilo con i colleghi per unirli al tuo istituto.
-                </Text>
+            {isCloudTeacher ? (
+              <View style={[styles.summaryCard, { backgroundColor: colors.primary }]}>
+                <View style={styles.summaryCell}>
+                  <Text style={[styles.summaryLabel, { color: colors.primaryForeground }]}>ALUNNI</Text>
+                  <Text style={[styles.summaryValue, { color: colors.primaryForeground }]}>
+                    {statsQuery.isLoading ? '—' : statsQuery.data?.totalStudents ?? 0}
+                  </Text>
+                  <Text style={[styles.summaryCaption, { color: colors.primaryForeground }]}>totali</Text>
+                </View>
+                <View style={styles.summaryCell}>
+                  <Text style={[styles.summaryLabel, { color: colors.primaryForeground }]}>ATTIVITÀ</Text>
+                  <Text style={[styles.summaryValue, { color: colors.primaryForeground }]}>
+                    {statsQuery.isLoading ? '—' : statsQuery.data?.totalActivities ?? 0}
+                  </Text>
+                  <Text style={[styles.summaryCaption, { color: colors.primaryForeground }]}>registrate</Text>
+                </View>
+                <View style={styles.summaryCell}>
+                  <Text style={[styles.summaryLabel, { color: colors.primaryForeground }]}>ORE</Text>
+                  <Text style={[styles.summaryValue, { color: colors.primaryForeground }]}>
+                    {statsQuery.isLoading
+                      ? '—'
+                      : (statsQuery.data?.totalHours ?? 0).toLocaleString('it-IT', { maximumFractionDigits: 1 })}
+                  </Text>
+                  <Text style={[styles.summaryCaption, { color: colors.primaryForeground }]}>complessive</Text>
+                </View>
               </View>
             ) : null}
-            {isCloudTeacher ? (
-              <View style={[styles.classesCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.classesTitle, { color: colors.foreground }]}>Classi e codici di accesso</Text>
-                {(classQuery.data ?? []).map((item) => (
-                  <View key={item.id} style={[styles.classRow, { borderColor: colors.border }]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.className, { color: colors.foreground }]}>{item.name}</Text>
-                      <Text selectable style={[styles.classCode, { color: colors.primary }]}>{item.joinCode}</Text>
-                    </View>
-                  </View>
-                ))}
-                <View style={styles.addClassRow}>
-                  <TextInput
-                    accessibilityLabel="Nome nuova classe"
-                    onChangeText={setClassName}
-                    onSubmitEditing={() => void addClass()}
-                    placeholder="Es. 2B"
-                    placeholderTextColor={colors.mutedForeground}
-                    style={[styles.classInput, { color: colors.foreground, borderColor: colors.border }]}
-                    value={className}
-                  />
-                  <Pressable
-                    accessibilityLabel="Crea classe"
-                    onPress={() => void addClass()}
-                    style={[styles.addClassButton, { backgroundColor: colors.primary }]}
-                  >
-                    <Feather name="plus" size={17} color={colors.primaryForeground} />
-                  </Pressable>
-                </View>
-                {classError ? <Text style={[styles.classError, { color: colors.primary }]}>{classError}</Text> : null}
-              </View>
+            {isCloudTeacher && statsQuery.isError ? (
+              <Text style={[styles.statsError, { color: colors.primary }]}>Statistiche non disponibili.</Text>
             ) : null}
             {isCloudTeacher && selectedCloudStudentId ? (
               detailQuery.isLoading
@@ -268,7 +241,7 @@ export default function TeacherScreen() {
             ) : null}
             <View style={styles.sectionHeading}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-                {isCloudTeacher ? 'Alunni dell’istituto' : 'Alunni su questo dispositivo'}
+                {isCloudTeacher ? 'Alunni registrati' : 'Alunni su questo dispositivo'}
               </Text>
               <Text style={[styles.sectionCount, { color: colors.mutedForeground }]}>{rows.length} profili</Text>
             </View>
@@ -298,7 +271,9 @@ export default function TeacherScreen() {
                 <View style={styles.studentCopy}>
                   <Text style={[styles.studentName, { color: colors.foreground }]} numberOfLines={1}>{item.name}</Text>
                   <Text style={[styles.studentActivityCount, { color: colors.mutedForeground }]} numberOfLines={1}>
-                    {item.className || item.email}
+                    {item.className
+                      ? `${item.className} · ${item.institutionName}`
+                      : item.institutionName || item.email}
                   </Text>
                 </View>
                 <View style={styles.studentStats}>
@@ -320,19 +295,12 @@ const styles = StyleSheet.create({
   headerCopy: { flex: 1, marginLeft: 15 },
   eyebrow: { fontSize: 10, fontWeight: '700', letterSpacing: 1.45, marginBottom: 5 },
   pageTitle: { fontSize: 30, fontWeight: '700', letterSpacing: -1 },
-  teacherCodeCard: { borderRadius: 18, padding: 15, marginBottom: 12 },
-  codeEyebrow: { fontSize: 9, fontWeight: '700', letterSpacing: 1.2, marginBottom: 5 },
-  teacherCode: { fontSize: 17, fontWeight: '700', letterSpacing: 1 },
-  codeHint: { fontSize: 11, lineHeight: 16, marginTop: 5 },
-  classesCard: { borderWidth: 1, borderRadius: 18, padding: 15, marginBottom: 14 },
-  classesTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
-  classRow: { borderTopWidth: 1, paddingVertical: 9, flexDirection: 'row', alignItems: 'center' },
-  className: { fontSize: 13, fontWeight: '600', marginBottom: 3 },
-  classCode: { fontSize: 12, fontWeight: '700', letterSpacing: 0.8 },
-  addClassRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
-  classInput: { flex: 1, minHeight: 43, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, fontSize: 14 },
-  addClassButton: { width: 43, height: 43, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  classError: { fontSize: 12, marginTop: 8 },
+  summaryCard: { borderRadius: 18, padding: 15, marginBottom: 12, flexDirection: 'row' },
+  summaryCell: { flex: 1, alignItems: 'center' },
+  summaryLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 1.05, opacity: 0.75, marginBottom: 5 },
+  summaryValue: { fontSize: 21, fontWeight: '700' },
+  summaryCaption: { fontSize: 10, opacity: 0.78, marginTop: 2 },
+  statsError: { fontSize: 12, marginBottom: 8 },
   loadingDetail: { textAlign: 'center', padding: 18, fontSize: 13 },
   searchBox: { minHeight: 48, borderRadius: 14, borderWidth: 1, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 8 },
   searchInput: { flex: 1, paddingVertical: 8, fontSize: 14 },
@@ -351,6 +319,7 @@ const styles = StyleSheet.create({
   detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   detailEyebrow: { fontSize: 9, fontWeight: '700', letterSpacing: 1.25, opacity: 0.72, marginBottom: 5 },
   detailName: { fontSize: 19, fontWeight: '700', marginBottom: 4 },
+  detailMeta: { fontSize: 11, opacity: 0.78 },
   detailTotal: { borderRadius: 13, minWidth: 60, paddingVertical: 8, alignItems: 'center' },
   detailTotalNumber: { fontSize: 18, fontWeight: '700' },
   detailTotalLabel: { fontSize: 9, fontWeight: '600' },

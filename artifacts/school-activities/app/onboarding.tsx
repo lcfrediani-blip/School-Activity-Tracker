@@ -19,9 +19,9 @@ import { useColors } from '@/hooks/useColors';
 type PendingProfile = {
   role?: AccountProfileRole;
   name?: string;
-  classCode?: string;
+  className?: string;
   institutionName?: string;
-  teacherCode?: string;
+  teacherInviteCode?: string;
 };
 
 export default function OnboardingScreen() {
@@ -35,9 +35,9 @@ export default function OnboardingScreen() {
   const email = user?.primaryEmailAddress?.emailAddress ?? '';
   const [role, setRole] = useState<AccountProfileRole>('student');
   const [name, setName] = useState('');
-  const [classCode, setClassCode] = useState('');
+  const [className, setClassName] = useState('');
   const [institutionName, setInstitutionName] = useState('');
-  const [teacherCode, setTeacherCode] = useState('');
+  const [teacherInviteCode, setTeacherInviteCode] = useState('');
   const [importLocalData, setImportLocalData] = useState(false);
   const [legacyPassword, setLegacyPassword] = useState('');
   const [error, setError] = useState('');
@@ -52,9 +52,9 @@ export default function OnboardingScreen() {
         const pending = JSON.parse(saved) as PendingProfile;
         if (pending.role) setRole(pending.role);
         if (pending.name) setName(pending.name);
-        if (pending.classCode) setClassCode(pending.classCode);
+        if (pending.className) setClassName(pending.className);
         if (pending.institutionName) setInstitutionName(pending.institutionName);
-        if (pending.teacherCode) setTeacherCode(pending.teacherCode);
+        if (pending.teacherInviteCode) setTeacherInviteCode(pending.teacherInviteCode);
       } catch {
         setError('I dati di registrazione salvati non sono leggibili. Completa il profilo manualmente.');
       }
@@ -77,16 +77,16 @@ export default function OnboardingScreen() {
         setError('Inserisci nome e cognome.');
         return;
       }
-      if (role === 'student' && !classCode.trim()) {
-        setError('Inserisci il codice della classe fornito dall’insegnante.');
+      if (role === 'student' && !className.trim()) {
+        setError('Indica la classe frequentata.');
         return;
       }
-      if (role === 'student' && !institutionName.trim()) {
-        setError('Indica il nome dell’istituto frequentato.');
+      if (!institutionName.trim()) {
+        setError('Indica il nome dell’istituto.');
         return;
       }
-      if (role === 'teacher' && !institutionName.trim() && !teacherCode.trim()) {
-        setError('Indica il nome dell’istituto oppure inserisci il codice ricevuto da un collega.');
+      if (role === 'teacher' && !teacherInviteCode.trim()) {
+        setError('Inserisci l’invito riservato ai docenti.');
         return;
       }
 
@@ -116,12 +116,12 @@ export default function OnboardingScreen() {
           name: name.trim(),
           ...(role === 'student'
             ? {
-                classCode: classCode.trim().toUpperCase(),
+                className: className.trim(),
                 institutionName: institutionName.trim(),
               }
             : {
-                ...(teacherCode.trim() ? { teacherCode: teacherCode.trim().toUpperCase() } : {}),
-                ...(institutionName.trim() ? { institutionName: institutionName.trim() } : {}),
+                institutionName: institutionName.trim(),
+                teacherInviteCode: teacherInviteCode.trim(),
               }),
         },
       });
@@ -237,15 +237,15 @@ export default function OnboardingScreen() {
             style={[styles.input, inputStyle]}
             value={institutionName}
           />
-          <Text style={[styles.label, { color: colors.foreground }]}>Codice classe</Text>
+          <Text style={[styles.label, { color: colors.foreground }]}>Classe</Text>
           <TextInput
-            accessibilityLabel="Codice classe"
-            autoCapitalize="characters"
-            onChangeText={setClassCode}
-            placeholder="Inserisci il codice dell’insegnante"
+            accessibilityLabel="Classe"
+            autoCapitalize="words"
+            onChangeText={setClassName}
+            placeholder="Es. 2B"
             placeholderTextColor={colors.mutedForeground}
             style={[styles.input, inputStyle]}
-            value={classCode}
+            value={className}
           />
         </>
       ) : (
@@ -260,18 +260,19 @@ export default function OnboardingScreen() {
             style={[styles.input, inputStyle]}
             value={institutionName}
           />
-          <Text style={[styles.label, { color: colors.foreground }]}>Codice insegnante (facoltativo)</Text>
+          <Text style={[styles.label, { color: colors.foreground }]}>Invito riservato docente</Text>
           <TextInput
-            accessibilityLabel="Codice insegnante"
-            autoCapitalize="characters"
-            onChangeText={setTeacherCode}
-            placeholder="Per unirti all’istituto di un collega"
+            accessibilityLabel="Invito riservato docente"
+            autoCapitalize="none"
+            onChangeText={setTeacherInviteCode}
+            placeholder="Codice invito"
             placeholderTextColor={colors.mutedForeground}
+            secureTextEntry
             style={[styles.input, inputStyle]}
-            value={teacherCode}
+            value={teacherInviteCode}
           />
           <Text style={[styles.note, { color: colors.mutedForeground }]}>
-            Se non inserisci un codice, verrà creato un nuovo istituto. Potrai condividere il codice insegnante con i colleghi e creare codici classe per gli allievi.
+            L’invito serve solo per autorizzare la registrazione docente; non è un codice classe.
           </Text>
         </>
       )}

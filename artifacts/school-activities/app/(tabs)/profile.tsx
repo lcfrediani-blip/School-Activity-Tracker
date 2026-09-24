@@ -7,19 +7,46 @@ import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { useUpdateAccountProfile } from '@workspace/api-client-react';
 
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { student, saveStudent, signOut } = useApp();
+  const { student, saveStudent, signOut, cloudProfile, activateCloudProfile } = useApp();
+  const updateRemoteProfile = useUpdateAccountProfile();
   const [name, setName] = useState(student?.name ?? '');
   const [className, setClassName] = useState(student?.className ?? '');
   const [institute, setInstitute] = useState(student?.institute ?? '');
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const submit = async () => {
     if (!name.trim() || !className.trim() || !institute.trim()) return;
-    await saveStudent({ name: name.trim(), className: className.trim(), institute: institute.trim() });
+    setSaveError('');
+    const input = { name: name.trim(), className: className.trim(), institute: institute.trim() };
+    try {
+      if (cloudProfile?.role === 'student') {
+        const updatedProfile = await updateRemoteProfile.mutateAsync({
+          data: {
+            name: input.name,
+            className: input.className,
+            institutionName: input.institute,
+          },
+        });
+        await activateCloudProfile(
+          updatedProfile,
+          (student?.activities ?? []).map((activity) => ({
+            ...activity,
+            updatedAt: activity.updatedAt ?? new Date().toISOString(),
+          })),
+        );
+      } else {
+        await saveStudent(input);
+      }
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Non è stato possibile salvare il profilo.');
+      return;
+    }
     setSaved(true);
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setTimeout(() => setSaved(false), 2200);
@@ -102,20 +129,25 @@ export default function ProfileScreen() {
         />
       </View>
 
+      {saveError ? <Text style={[styles.saveError, { color: colors.primary }]}>{saveError}</Text> : null}
       <Pressable
         accessibilityLabel="Salva profilo"
-        disabled={!name.trim() || !className.trim() || !institute.trim()}
+        disabled={!name.trim() || !className.trim() || !institute.trim() || updateRemoteProfile.isPending}
         onPress={() => void submit()}
         style={({ pressed }) => [
           styles.saveButton,
-          { backgroundColor: colors.primary, opacity: !name.trim() || !className.trim() || !institute.trim() ? 0.45 : 1 },
+          { backgroundColor: colors.primary, opacity: !name.trim() || !className.trim() || !institute.trim() || updateRemoteProfile.isPending ? 0.45 : 1 },
           pressed && { transform: [{ scale: 0.98 }] },
         ]}
       >
-        <Text style={[styles.saveText, { color: colors.primaryForeground }]}>{saved ? 'Profilo salvato' : 'Salva profilo'}</Text>
-        <Feather name={saved ? 'check' : 'arrow-up-right'} size={18} color={colors.primaryForeground} />
+        <Text style={[styles.saveText, { color: colors.primaryForeground }]}>
+          {updateRemoteProfile.isPending ? 'Salvataggio…' : saved ? 'Profilo salvato' : 'Salva profilo'}
+        </Text>
+        <Feather name={updateRemoteProfile.isPending ? 'clock' : saved ? 'check' : 'arrow-up-right'} size={18} color={colors.primaryForeground} />
       </Pressable>
-      <Text style={[styles.privacy, { color: colors.mutedForeground }]}>I tuoi dati restano salvati sul dispositivo.</Text>
+      <Text style={[styles.privacy, { color: colors.mutedForeground }]}>
+        {cloudProfile ? 'Profilo e attività sono sincronizzati tra i tuoi dispositivi.' : 'Questo profilo locale resta salvato sul dispositivo.'}
+      </Text>
       <Pressable
         accessibilityLabel="Esci dall'account"
         onPress={() => void logout()}
@@ -151,6 +183,7 @@ const styles = StyleSheet.create({
   saveButton: { height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   saveText: { fontSize: 15, fontWeight: '700' },
   privacy: { fontSize: 12, textAlign: 'center', marginTop: 14 },
+  saveError: { fontSize: 12, lineHeight: 17, marginTop: -8, marginBottom: 10 },
   logoutButton: { alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, marginTop: 18, paddingVertical: 10 },
   logoutText: { fontSize: 13, fontWeight: '600' },
 });

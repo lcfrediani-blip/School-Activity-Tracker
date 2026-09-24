@@ -6,13 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface StudentSummary {
-  id: string;
+export interface AccountProfileUpdateInput {
+  /** @minLength 1 */
   name: string;
-  email: string;
-  /** @nullable */
-  className: string | null;
+  /** @minLength 1 */
+  className: string;
+  /** @minLength 1 */
   institutionName: string;
-  activitiesCount: number;
-  totalHours: number;
 }

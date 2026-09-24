@@ -22,9 +22,9 @@ export default function LoginScreen() {
   const [mode, setMode] = useState<AccessMode>(params.mode === 'register' ? 'register' : 'login');
   const [role, setRole] = useState<AppRole>('student');
   const [name, setName] = useState('');
-  const [classCode, setClassCode] = useState('');
+  const [className, setClassName] = useState('');
   const [institute, setInstitute] = useState('');
-  const [teacherCode, setTeacherCode] = useState('');
+  const [teacherInviteCode, setTeacherInviteCode] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -50,9 +50,9 @@ export default function LoginScreen() {
       JSON.stringify({
         role,
         name: name.trim(),
-        classCode: classCode.trim().toUpperCase(),
+        className: className.trim(),
         institutionName: institute.trim(),
-        teacherCode: teacherCode.trim().toUpperCase(),
+        teacherInviteCode: teacherInviteCode.trim(),
       }),
     );
   };
@@ -118,16 +118,16 @@ export default function LoginScreen() {
           setError('Inserisci nome e cognome.');
           return;
         }
-        if (role === 'student' && !classCode.trim()) {
-          setError('Inserisci il codice della classe fornito dall’insegnante.');
+        if (role === 'student' && !className.trim()) {
+          setError('Indica la classe frequentata.');
           return;
         }
-        if (role === 'student' && !institute.trim()) {
-          setError('Indica il nome dell’istituto frequentato.');
-          return;
-        }
-        if (role === 'teacher' && !institute.trim()) {
+        if (!institute.trim()) {
           setError('Indica il nome dell’istituto.');
+          return;
+        }
+        if (role === 'teacher' && !teacherInviteCode.trim()) {
+          setError('Inserisci l’invito riservato ai docenti.');
           return;
         }
         await savePendingProfile();
@@ -291,11 +291,11 @@ export default function LoginScreen() {
                   onFocus={() => setError('')}
                 />
                 <RegistrationTextInputField
-                  label="Codice classe"
-                  value={classCode}
-                  onChangeText={setClassCode}
-                  placeholder="Es. CLASS-8A3F..."
-                  accessibilityLabel="Codice classe"
+                  label="Classe"
+                  value={className}
+                  onChangeText={setClassName}
+                  placeholder="Es. 2B"
+                  accessibilityLabel="Classe"
                   colors={colors}
                   onFocus={() => setError('')}
                 />
@@ -312,16 +312,18 @@ export default function LoginScreen() {
                   onFocus={() => setError('')}
                 />
                 <RegistrationTextInputField
-                  label="Codice insegnante (facoltativo)"
-                  value={teacherCode}
-                  onChangeText={setTeacherCode}
-                  placeholder="Se un collega ti ha invitato"
-                  accessibilityLabel="Codice insegnante"
+                  label="Invito riservato docente"
+                  value={teacherInviteCode}
+                  onChangeText={setTeacherInviteCode}
+                  placeholder="Codice invito"
+                  accessibilityLabel="Invito riservato docente"
+                  secureTextEntry
+                  autoCapitalize="none"
                   colors={colors}
                   onFocus={() => setError('')}
                 />
                 <Text style={[styles.helper, { color: colors.mutedForeground, marginBottom: 14 }]}>
-                  Senza codice creerai un nuovo istituto e riceverai un codice da condividere con i colleghi.
+                  Serve solo per registrarsi come docente; non è un codice classe.
                 </Text>
               </>
             )}
@@ -545,6 +547,8 @@ type RegistrationTextInputFieldProps = {
   accessibilityLabel: string;
   colors: ReturnType<typeof useColors>;
   onFocus: () => void;
+  secureTextEntry?: boolean;
+  autoCapitalize?: 'none' | 'words' | 'characters';
 };
 
 function RegistrationTextInputField({
@@ -555,17 +559,20 @@ function RegistrationTextInputField({
   accessibilityLabel,
   colors,
   onFocus,
+  secureTextEntry,
+  autoCapitalize = 'words',
 }: RegistrationTextInputFieldProps) {
   return (
     <>
       <Text style={[styles.label, { color: colors.foreground }]}>{label}</Text>
       <TextInput
         accessibilityLabel={accessibilityLabel}
-        autoCapitalize="characters"
+        autoCapitalize={autoCapitalize}
         onChangeText={onChangeText}
         onFocus={onFocus}
         placeholder={placeholder}
         placeholderTextColor={colors.mutedForeground}
+        secureTextEntry={secureTextEntry}
         style={[
           styles.input,
           {

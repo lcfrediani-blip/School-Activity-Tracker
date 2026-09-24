@@ -6,7 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ClassInput {
-  /** @minLength 1 */
-  name: string;
+export interface TeacherStats {
+  totalStudents: number;
+  totalActivities: number;
+  totalHours: number;
 }

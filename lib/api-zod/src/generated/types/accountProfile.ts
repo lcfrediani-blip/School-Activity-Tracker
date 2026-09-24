@@ -16,9 +16,5 @@ export interface AccountProfile {
   institutionId: string;
   institutionName: string;
   /** @nullable */
-  classId?: string | null;
-  /** @nullable */
   className?: string | null;
-  /** @nullable */
-  teacherCode?: string | null;
 }

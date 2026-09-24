@@ -1,13 +1,4 @@
-import {
-  boolean,
-  doublePrecision,
-  integer,
-  index,
-  pgTable,
-  text,
-  timestamp,
-  uniqueIndex,
-} from "drizzle-orm/pg-core";
+import { boolean, doublePrecision, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const institutions = pgTable(
   "institutions",
@@ -15,7 +6,7 @@ export const institutions = pgTable(
     id: text("id").primaryKey(),
     name: text("name").notNull(),
     normalizedName: text("normalized_name").notNull(),
-    teacherCode: text("teacher_code").notNull(),
+    teacherCode: text("teacher_code"),
     createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -54,6 +45,7 @@ export const accountProfiles = pgTable(
     instituteId: text("institution_id")
       .notNull()
       .references(() => institutions.id),
+    className: text("class_name"),
     classId: text("class_id").references(() => classes.id),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -61,6 +53,7 @@ export const accountProfiles = pgTable(
   (table) => [
     uniqueIndex("account_profiles_clerk_user_key").on(table.clerkUserId),
     index("account_profiles_institution_name_idx").on(table.instituteId, table.name),
+    index("account_profiles_role_name_idx").on(table.role, table.name),
   ],
 );
 

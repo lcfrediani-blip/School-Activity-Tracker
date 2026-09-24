@@ -49,6 +49,23 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AccountProfile" }
+    put:
+      operationId: updateAccountProfile
+      tags: [account]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AccountProfileUpdateInput" }
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountProfile" }
+        "403":
+          description: Student access required
     get:
       operationId: getAccountProfile
       tags: [account]
@@ -75,34 +92,17 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/StudentSyncResponse" }
-  /teacher/classes:
+  /teacher/stats:
     get:
-      operationId: listTeacherClasses
+      operationId: getTeacherStats
       tags: [teacher]
       security: [{ bearerAuth: [] }]
       responses:
         "200":
-          description: Institution classes
+          description: Global statistics across all student profiles
           content:
             application/json:
-              schema:
-                type: array
-                items: { $ref: "#/components/schemas/Class" }
-    post:
-      operationId: createTeacherClass
-      tags: [teacher]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/ClassInput" }
-      responses:
-        "201":
-          description: Created class
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Class" }
+              schema: { $ref: "#/components/schemas/TeacherStats" }
   /teacher/students:
     get:
       operationId: searchTeacherStudents
@@ -115,7 +115,7 @@ paths:
           schema: { type: string, default: "" }
       responses:
         "200":
-          description: Students in the teacher's institution
+          description: Students across all institutions, optionally searched by name
           content:
             application/json:
               schema:
@@ -153,13 +153,25 @@ components:
         - status
     AccountProfileInput:
       type: object
-      required: [role, name]
+      required: [role, name, institutionName]
       properties:
         role: { type: string, enum: [student, teacher] }
         name: { type: string, minLength: 1 }
-        classCode: { type: string }
-        teacherCode: { type: string }
-        institutionName: { type: string }
+        institutionName: { type: string, minLength: 1 }
+        className:
+          type: string
+          minLength: 1
+          description: Required for students; not used for teachers.
+        teacherInviteCode:
+          type: string
+          description: Required for teacher registration.
+    AccountProfileUpdateInput:
+      type: object
+      required: [name, className, institutionName]
+      properties:
+        name: { type: string, minLength: 1 }
+        className: { type: string, minLength: 1 }
+        institutionName: { type: string, minLength: 1 }
     AccountProfile:
       type: object
       required: [id, clerkUserId, role, name, email, institutionId, institutionName]
@@ -171,9 +183,7 @@ components:
         email: { type: string }
         institutionId: { type: string }
         institutionName: { type: string }
-        classId: { type: [string, "null"] }
         className: { type: [string, "null"] }
-        teacherCode: { type: [string, "null"] }
     Activity:
       type: object
       required: [id, title, date, location, hours, updatedAt]
@@ -204,27 +214,22 @@ components:
         deletedIds:
           type: array
           items: { type: string }
-    ClassInput:
+    TeacherStats:
       type: object
-      required: [name]
+      required: [totalStudents, totalActivities, totalHours]
       properties:
-        name: { type: string, minLength: 1 }
-    Class:
-      type: object
-      required: [id, name, joinCode, institutionId]
-      properties:
-        id: { type: string }
-        name: { type: string }
-        joinCode: { type: string }
-        institutionId: { type: string }
+        totalStudents: { type: integer }
+        totalActivities: { type: integer }
+        totalHours: { type: number }
     StudentSummary:
       type: object
-      required: [id, name, email, className, activitiesCount, totalHours]
+      required: [id, name, email, className, institutionName, activitiesCount, totalHours]
       properties:
         id: { type: string }
         name: { type: string }
         email: { type: string }
         className: { type: [string, "null"] }
+        institutionName: { type: string }
         activitiesCount: { type: integer }
         totalHours: { type: number }
     StudentDetail:

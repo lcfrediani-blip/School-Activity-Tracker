@@ -11,7 +11,13 @@ export interface AccountProfileInput {
   role: AccountProfileInputRole;
   /** @minLength 1 */
   name: string;
-  classCode?: string;
-  teacherCode?: string;
-  institutionName?: string;
+  /** @minLength 1 */
+  institutionName: string;
+  /**
+     * Required for students; not used for teachers.
+     * @minLength 1
+     */
+  className?: string;
+  /** Required for teacher registration. */
+  teacherInviteCode?: string;
 }
