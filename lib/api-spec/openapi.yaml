@@ -137,6 +137,80 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/StudentDetail" }
+  /teacher/managed-students:
+    get:
+      operationId: searchTeacherManagedStudents
+      tags: [teacher]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema: { type: string, default: "" }
+      responses:
+        "200":
+          description: Teacher-managed student profiles visible to all teachers
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ManagedStudentSummary" }
+    post:
+      operationId: createTeacherManagedStudent
+      tags: [teacher]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ManagedStudentInput" }
+      responses:
+        "201":
+          description: Teacher-managed student profile created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ManagedStudentSummary" }
+  /teacher/managed-students/{studentId}:
+    get:
+      operationId: getTeacherManagedStudent
+      tags: [teacher]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Teacher-managed student profile and recorded activities
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ManagedStudentDetail" }
+        "404":
+          description: Student profile not found
+  /teacher/managed-students/{studentId}/activities:
+    post:
+      operationId: createTeacherManagedStudentActivity
+      tags: [teacher]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ManagedStudentActivityInput" }
+      responses:
+        "201":
+          description: Activity recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Activity" }
+        "404":
+          description: Student profile not found
 components:
   securitySchemes:
     bearerAuth:
@@ -244,4 +318,37 @@ components:
             activities:
               type: array
               items: { $ref: "#/components/schemas/Activity" }
+    ManagedStudentInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        className: { type: string, maxLength: 80 }
+    ManagedStudentSummary:
+      type: object
+      required: [id, name, className, institutionName, activitiesCount, totalHours]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        className: { type: [string, "null"] }
+        institutionName: { type: string }
+        activitiesCount: { type: integer }
+        totalHours: { type: number }
+    ManagedStudentDetail:
+      allOf:
+        - $ref: "#/components/schemas/ManagedStudentSummary"
+        - type: object
+          required: [activities]
+          properties:
+            activities:
+              type: array
+              items: { $ref: "#/components/schemas/Activity" }
+    ManagedStudentActivityInput:
+      type: object
+      required: [title, date, location, hours]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 160 }
+        date: { type: string, format: date }
+        location: { type: string, minLength: 1, maxLength: 160 }
+        hours: { type: number, exclusiveMinimum: 0 }
 

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { randomUUID, timingSafeEqual } from "node:crypto";
-import { and, asc, count, eq, ilike, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, sql } from "drizzle-orm";
 import { clerkClient } from "@clerk/express";
 import {
   accountProfiles,
@@ -8,10 +8,17 @@ import {
   classes,
   db,
   institutions,
+  managedStudentActivities,
+  managedStudents,
 } from "@workspace/db";
 import {
   CreateAccountProfileBody,
+  CreateTeacherManagedStudentActivityBody,
+  CreateTeacherManagedStudentActivityParams,
+  CreateTeacherManagedStudentBody,
+  GetTeacherManagedStudentParams,
   GetTeacherStudentParams,
+  SearchTeacherManagedStudentsQueryParams,
   SearchTeacherStudentsQueryParams,
   SyncStudentDataBody,
   UpdateAccountProfileBody,
@@ -313,5 +320,206 @@ router.get("/teacher/students/:studentId", requireAuth, async (req, res) => {
     })),
   });
 });
+
+router.get("/teacher/managed-students", requireAuth, async (req, res) => {
+  const profile = (await currentUser(req as AuthenticatedRequest))[0];
+  if (!profile || profile.role !== "teacher") {
+    res.status(403).json({ error: "Teacher access required." });
+    return;
+  }
+  const query = SearchTeacherManagedStudentsQueryParams.parse(req.query);
+  const rows = await db
+    .select({
+      id: managedStudents.id,
+      name: managedStudents.name,
+      className: managedStudents.className,
+      institutionName: institutions.name,
+      activitiesCount: count(managedStudentActivities.id),
+      totalHours: sql<number>`coalesce(sum(${managedStudentActivities.hours}), 0)`,
+    })
+    .from(managedStudents)
+    .innerJoin(institutions, eq(managedStudents.institutionId, institutions.id))
+    .leftJoin(
+      managedStudentActivities,
+      and(
+        eq(managedStudentActivities.studentId, managedStudents.id),
+        eq(managedStudentActivities.deleted, false),
+      ),
+    )
+    .where(ilike(managedStudents.name, `%${query.search}%`))
+    .groupBy(managedStudents.id, institutions.name)
+    .orderBy(asc(managedStudents.name));
+  res.json(
+    rows.map((row) => ({
+      ...row,
+      activitiesCount: Number(row.activitiesCount),
+      totalHours: Number(row.totalHours),
+    })),
+  );
+});
+
+router.post("/teacher/managed-students", requireAuth, async (req, res) => {
+  const profile = (await currentUser(req as AuthenticatedRequest))[0];
+  if (!profile || profile.role !== "teacher") {
+    res.status(403).json({ error: "Teacher access required." });
+    return;
+  }
+  const input = CreateTeacherManagedStudentBody.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: input.error.message });
+    return;
+  }
+  const name = input.data.name.trim();
+  if (!name) {
+    res.status(400).json({ error: "Student name is required." });
+    return;
+  }
+  const className = input.data.className?.trim() || null;
+  const student = {
+    id: randomUUID(),
+    name,
+    institutionId: profile.instituteId,
+    className,
+    createdBy: profile.id,
+  };
+  await db.insert(managedStudents).values(student);
+  const institution = (
+    await db
+      .select({ name: institutions.name })
+      .from(institutions)
+      .where(eq(institutions.id, profile.instituteId))
+      .limit(1)
+  )[0];
+  if (!institution) {
+    res.status(500).json({ error: "Teacher institution not found." });
+    return;
+  }
+  res.status(201).json({
+    id: student.id,
+    name: student.name,
+    className: student.className,
+    institutionName: institution.name,
+    activitiesCount: 0,
+    totalHours: 0,
+  });
+});
+
+router.get("/teacher/managed-students/:studentId", requireAuth, async (req, res) => {
+  const profile = (await currentUser(req as AuthenticatedRequest))[0];
+  if (!profile || profile.role !== "teacher") {
+    res.status(403).json({ error: "Teacher access required." });
+    return;
+  }
+  const params = GetTeacherManagedStudentParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const student = (
+    await db
+      .select({
+        id: managedStudents.id,
+        name: managedStudents.name,
+        className: managedStudents.className,
+        institutionName: institutions.name,
+      })
+      .from(managedStudents)
+      .innerJoin(institutions, eq(managedStudents.institutionId, institutions.id))
+      .where(eq(managedStudents.id, params.data.studentId))
+      .limit(1)
+  )[0];
+  if (!student) {
+    res.status(404).json({ error: "Student not found." });
+    return;
+  }
+  const studentActivities = await db
+    .select()
+    .from(managedStudentActivities)
+    .where(
+      and(
+        eq(managedStudentActivities.studentId, student.id),
+        eq(managedStudentActivities.deleted, false),
+      ),
+    )
+    .orderBy(desc(managedStudentActivities.date), desc(managedStudentActivities.updatedAt));
+  res.json({
+    ...student,
+    activitiesCount: studentActivities.length,
+    totalHours: studentActivities.reduce((sum, activity) => sum + activity.hours, 0),
+    activities: studentActivities.map((activity) => ({
+      id: activity.id,
+      title: activity.title,
+      date: activity.date,
+      location: activity.location,
+      hours: activity.hours,
+      updatedAt: activity.updatedAt.toISOString(),
+    })),
+  });
+});
+
+router.post(
+  "/teacher/managed-students/:studentId/activities",
+  requireAuth,
+  async (req, res) => {
+    const profile = (await currentUser(req as AuthenticatedRequest))[0];
+    if (!profile || profile.role !== "teacher") {
+      res.status(403).json({ error: "Teacher access required." });
+      return;
+    }
+    const params = CreateTeacherManagedStudentActivityParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    const dateValue = req.body?.date;
+    if (
+      typeof dateValue !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(dateValue) ||
+      Number.isNaN(Date.parse(`${dateValue}T00:00:00.000Z`)) ||
+      new Date(`${dateValue}T00:00:00.000Z`).toISOString().slice(0, 10) !== dateValue
+    ) {
+      res.status(400).json({ error: "Activity date must be a valid YYYY-MM-DD date." });
+      return;
+    }
+    const input = CreateTeacherManagedStudentActivityBody.safeParse(req.body);
+    if (!input.success) {
+      res.status(400).json({ error: input.error.message });
+      return;
+    }
+    const student = (
+      await db
+        .select({ id: managedStudents.id })
+        .from(managedStudents)
+        .where(eq(managedStudents.id, params.data.studentId))
+        .limit(1)
+    )[0];
+    if (!student) {
+      res.status(404).json({ error: "Student not found." });
+      return;
+    }
+    const activity = {
+      id: randomUUID(),
+      studentId: student.id,
+      title: input.data.title.trim(),
+      date: dateValue,
+      location: input.data.location.trim(),
+      hours: input.data.hours,
+      recordedBy: profile.id,
+    };
+    if (!activity.title || !activity.location) {
+      res.status(400).json({ error: "Activity title and location are required." });
+      return;
+    }
+    await db.insert(managedStudentActivities).values(activity);
+    res.status(201).json({
+      id: activity.id,
+      title: activity.title,
+      date: activity.date,
+      location: activity.location,
+      hours: activity.hours,
+      updatedAt: new Date().toISOString(),
+    });
+  },
+);
 
 export default router;

@@ -23,7 +23,13 @@ import type {
   AccountProfile,
   AccountProfileInput,
   AccountProfileUpdateInput,
+  Activity,
   HealthStatus,
+  ManagedStudentActivityInput,
+  ManagedStudentDetail,
+  ManagedStudentInput,
+  ManagedStudentSummary,
+  SearchTeacherManagedStudentsParams,
   SearchTeacherStudentsParams,
   StudentDetail,
   StudentSummary,
@@ -673,4 +679,318 @@ export function useGetTeacherStudent<TData = Awaited<ReturnType<typeof getTeache
 
 
 
+
+export const getSearchTeacherManagedStudentsUrl = (params?: SearchTeacherManagedStudentsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/teacher/managed-students?${stringifiedParams}` : `/api/teacher/managed-students`
+}
+
+export const searchTeacherManagedStudents = async (params?: SearchTeacherManagedStudentsParams, options?: Parameters<typeof customFetch>[1]): Promise<ManagedStudentSummary[]> => {
+
+  return customFetch<ManagedStudentSummary[]>(getSearchTeacherManagedStudentsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchTeacherManagedStudentsQueryKey = (params?: SearchTeacherManagedStudentsParams,) => {
+    return [
+    `/api/teacher/managed-students`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchTeacherManagedStudentsQueryOptions = <TData = Awaited<ReturnType<typeof searchTeacherManagedStudents>>, TError = ErrorType<unknown>>(params?: SearchTeacherManagedStudentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchTeacherManagedStudents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchTeacherManagedStudentsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchTeacherManagedStudents>>> = ({ signal }) => searchTeacherManagedStudents(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchTeacherManagedStudents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchTeacherManagedStudentsQueryResult = NonNullable<Awaited<ReturnType<typeof searchTeacherManagedStudents>>>
+export type SearchTeacherManagedStudentsQueryError = ErrorType<unknown>
+
+
+
+export function useSearchTeacherManagedStudents<TData = Awaited<ReturnType<typeof searchTeacherManagedStudents>>, TError = ErrorType<unknown>>(
+ params?: SearchTeacherManagedStudentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchTeacherManagedStudents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchTeacherManagedStudentsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTeacherManagedStudentUrl = () => {
+
+
+
+
+  return `/api/teacher/managed-students`
+}
+
+export const createTeacherManagedStudent = async (managedStudentInput: ManagedStudentInput, options?: Parameters<typeof customFetch>[1]): Promise<ManagedStudentSummary> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ManagedStudentSummary>(getCreateTeacherManagedStudentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(managedStudentInput)
+  }
+);}
+
+
+
+
+
+export const getCreateTeacherManagedStudentMutationKey = () => ['createTeacherManagedStudent'] as const;
+
+export const getCreateTeacherManagedStudentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTeacherManagedStudent>>, TError,CreateTeacherManagedStudentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTeacherManagedStudent>>, TError,CreateTeacherManagedStudentMutationVariables, TContext> => {
+
+const mutationKey = getCreateTeacherManagedStudentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTeacherManagedStudent>>, CreateTeacherManagedStudentMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTeacherManagedStudent(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTeacherManagedStudentMutationResult = NonNullable<Awaited<ReturnType<typeof createTeacherManagedStudent>>>
+    export type CreateTeacherManagedStudentMutationBody = BodyType<ManagedStudentInput>
+    export type CreateTeacherManagedStudentMutationError = ErrorType<unknown>
+    export type CreateTeacherManagedStudentMutationVariables = {data: BodyType<ManagedStudentInput>}
+
+    export const useCreateTeacherManagedStudent = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTeacherManagedStudent>>, TError,CreateTeacherManagedStudentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTeacherManagedStudent>>,
+        TError,
+        CreateTeacherManagedStudentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateTeacherManagedStudentMutationOptions(options));
+    }
+
+export const getGetTeacherManagedStudentUrl = (studentId: string,) => {
+
+
+
+
+  return `/api/teacher/managed-students/${studentId}`
+}
+
+export const getTeacherManagedStudent = async (studentId: string, options?: Parameters<typeof customFetch>[1]): Promise<ManagedStudentDetail> => {
+
+  return customFetch<ManagedStudentDetail>(getGetTeacherManagedStudentUrl(studentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTeacherManagedStudentQueryKey = (studentId: string,) => {
+    return [
+    `/api/teacher/managed-students/${studentId}`
+    ] as const;
+    }
+
+
+export const getGetTeacherManagedStudentQueryOptions = <TData = Awaited<ReturnType<typeof getTeacherManagedStudent>>, TError = ErrorType<void>>(studentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTeacherManagedStudent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTeacherManagedStudentQueryKey(studentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTeacherManagedStudent>>> = ({ signal }) => getTeacherManagedStudent(studentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: studentId !== null && studentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTeacherManagedStudent>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTeacherManagedStudentQueryResult = NonNullable<Awaited<ReturnType<typeof getTeacherManagedStudent>>>
+export type GetTeacherManagedStudentQueryError = ErrorType<void>
+
+
+
+export function useGetTeacherManagedStudent<TData = Awaited<ReturnType<typeof getTeacherManagedStudent>>, TError = ErrorType<void>>(
+ studentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTeacherManagedStudent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTeacherManagedStudentQueryOptions(studentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTeacherManagedStudentActivityUrl = (studentId: string,) => {
+
+
+
+
+  return `/api/teacher/managed-students/${studentId}/activities`
+}
+
+export const createTeacherManagedStudentActivity = async (studentId: string,
+    managedStudentActivityInput: ManagedStudentActivityInput, options?: Parameters<typeof customFetch>[1]): Promise<Activity> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Activity>(getCreateTeacherManagedStudentActivityUrl(studentId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(managedStudentActivityInput)
+  }
+);}
+
+
+
+
+
+export const getCreateTeacherManagedStudentActivityMutationKey = () => ['createTeacherManagedStudentActivity'] as const;
+
+export const getCreateTeacherManagedStudentActivityMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTeacherManagedStudentActivity>>, TError,CreateTeacherManagedStudentActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTeacherManagedStudentActivity>>, TError,CreateTeacherManagedStudentActivityMutationVariables, TContext> => {
+
+const mutationKey = getCreateTeacherManagedStudentActivityMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTeacherManagedStudentActivity>>, CreateTeacherManagedStudentActivityMutationVariables> = (props) => {
+          const {studentId,data} = props ?? {};
+
+          return  createTeacherManagedStudentActivity(studentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTeacherManagedStudentActivityMutationResult = NonNullable<Awaited<ReturnType<typeof createTeacherManagedStudentActivity>>>
+    export type CreateTeacherManagedStudentActivityMutationBody = BodyType<ManagedStudentActivityInput>
+    export type CreateTeacherManagedStudentActivityMutationError = ErrorType<void>
+    export type CreateTeacherManagedStudentActivityMutationVariables = {studentId: string;data: BodyType<ManagedStudentActivityInput>}
+
+    export const useCreateTeacherManagedStudentActivity = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTeacherManagedStudentActivity>>, TError,CreateTeacherManagedStudentActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTeacherManagedStudentActivity>>,
+        TError,
+        CreateTeacherManagedStudentActivityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateTeacherManagedStudentActivityMutationOptions(options));
+    }
 

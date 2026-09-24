@@ -106,7 +106,51 @@ export type StudentDetail = StudentSummary & {
   activities: Activity[];
 };
 
+export interface ManagedStudentInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  /** @maxLength 80 */
+  className?: string;
+}
+
+export interface ManagedStudentSummary {
+  id: string;
+  name: string;
+  /** @nullable */
+  className: string | null;
+  institutionName: string;
+  activitiesCount: number;
+  totalHours: number;
+}
+
+export type ManagedStudentDetail = ManagedStudentSummary & {
+  activities: Activity[];
+};
+
+export interface ManagedStudentActivityInput {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  title: string;
+  date: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  location: string;
+  /** @exclusiveMinimum 0 */
+  hours: number;
+}
+
 export type SearchTeacherStudentsParams = {
+search?: string;
+};
+
+export type SearchTeacherManagedStudentsParams = {
 search?: string;
 };
 

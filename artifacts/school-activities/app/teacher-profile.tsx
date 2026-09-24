@@ -97,6 +97,31 @@ export default function TeacherProfileScreen() {
         <Feather name="edit-3" size={18} color={colors.primaryForeground} />
       </View>
 
+      <Pressable
+        accessibilityLabel="Gestisci profili alunno e attività"
+        accessibilityRole="button"
+        onPress={() => router.push('/teacher-managed-students')}
+        style={({ pressed }) => [
+          styles.managedStudentsLink,
+          { backgroundColor: colors.card, borderColor: colors.border },
+          pressed && { opacity: 0.75 },
+        ]}
+        testID="teacher-managed-students-link"
+      >
+        <View style={[styles.managedStudentsIcon, { backgroundColor: colors.accent }]}>
+          <Feather name="users" size={20} color={colors.primary} />
+        </View>
+        <View style={styles.managedStudentsCopy}>
+          <Text style={[styles.managedStudentsTitle, { color: colors.foreground }]}>
+            Profili alunno e attività
+          </Text>
+          <Text style={[styles.managedStudentsDescription, { color: colors.mutedForeground }]}>
+            Crea schede senza account studente e registra le attività. Sono visibili a tutti i docenti.
+          </Text>
+        </View>
+        <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+      </Pressable>
+
       <View style={styles.form}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Dati del profilo</Text>
         <Text style={[styles.label, { color: colors.foreground }]}>Nome e cognome</Text>
@@ -162,6 +187,11 @@ const styles = StyleSheet.create({
   profileEyebrow: { fontSize: 9, fontWeight: '700', letterSpacing: 1.3, opacity: 0.72, marginBottom: 4 },
   profileName: { fontSize: 16, fontWeight: '700', marginBottom: 3 },
   profileInstitution: { fontSize: 12, opacity: 0.78 },
+  managedStudentsLink: { borderWidth: 1, borderRadius: 18, padding: 14, flexDirection: 'row', alignItems: 'center', marginBottom: 26 },
+  managedStudentsIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  managedStudentsCopy: { flex: 1, minWidth: 0 },
+  managedStudentsTitle: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  managedStudentsDescription: { fontSize: 11, lineHeight: 16 },
   form: { marginBottom: 18 },
   sectionTitle: { fontSize: 20, fontWeight: '700', marginBottom: 16, letterSpacing: -0.3 },
   label: { fontSize: 13, fontWeight: '600', marginBottom: 8 },

@@ -76,3 +76,47 @@ export const activities = pgTable(
     index("activities_active_student_idx").on(table.studentId, table.deleted),
   ],
 );
+
+export const managedStudents = pgTable(
+  "managed_students",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    institutionId: text("institution_id")
+      .notNull()
+      .references(() => institutions.id),
+    className: text("class_name"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => accountProfiles.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("managed_students_name_idx").on(table.name),
+    index("managed_students_institution_name_idx").on(table.institutionId, table.name),
+  ],
+);
+
+export const managedStudentActivities = pgTable(
+  "managed_student_activities",
+  {
+    id: text("id").primaryKey(),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => managedStudents.id),
+    title: text("title").notNull(),
+    date: text("date").notNull(),
+    location: text("location").notNull(),
+    hours: doublePrecision("hours").notNull(),
+    deleted: boolean("deleted").default(false).notNull(),
+    recordedBy: text("recorded_by")
+      .notNull()
+      .references(() => accountProfiles.id),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("managed_student_activities_student_idx").on(table.studentId),
+    index("managed_student_activities_active_student_idx").on(table.studentId, table.deleted),
+  ],
+);

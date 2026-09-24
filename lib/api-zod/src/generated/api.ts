@@ -164,3 +164,103 @@ export const GetTeacherStudentResponse = zod.object({
   "updatedAt": zod.coerce.date()
 }))
 }))
+
+
+export const searchTeacherManagedStudentsQuerySearchDefault = ``;
+
+export const SearchTeacherManagedStudentsQueryParams = zod.object({
+  "search": zod.coerce.string().default(searchTeacherManagedStudentsQuerySearchDefault)
+})
+
+export const SearchTeacherManagedStudentsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "className": zod.string().nullable(),
+  "institutionName": zod.string(),
+  "activitiesCount": zod.number().int(),
+  "totalHours": zod.number()
+})
+export const SearchTeacherManagedStudentsResponse = zod.array(SearchTeacherManagedStudentsResponseItem)
+
+
+export const createTeacherManagedStudentBodyNameMax = 120;
+
+export const createTeacherManagedStudentBodyClassNameMax = 80;
+
+
+
+export const CreateTeacherManagedStudentBody = zod.object({
+  "name": zod.string().min(1).max(createTeacherManagedStudentBodyNameMax),
+  "className": zod.string().max(createTeacherManagedStudentBodyClassNameMax).optional()
+})
+
+export const CreateTeacherManagedStudentResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "className": zod.string().nullable(),
+  "institutionName": zod.string(),
+  "activitiesCount": zod.number().int(),
+  "totalHours": zod.number()
+})
+
+
+export const GetTeacherManagedStudentParams = zod.object({
+  "studentId": zod.coerce.string()
+})
+
+
+export const getTeacherManagedStudentResponseTwoActivitiesItemHoursMin = 0;
+
+
+
+export const GetTeacherManagedStudentResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "className": zod.string().nullable(),
+  "institutionName": zod.string(),
+  "activitiesCount": zod.number().int(),
+  "totalHours": zod.number()
+}).and(zod.object({
+  "activities": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string().min(1),
+  "date": zod.string(),
+  "location": zod.string(),
+  "hours": zod.number().min(getTeacherManagedStudentResponseTwoActivitiesItemHoursMin),
+  "updatedAt": zod.coerce.date()
+}))
+}))
+
+
+export const CreateTeacherManagedStudentActivityParams = zod.object({
+  "studentId": zod.coerce.string()
+})
+
+export const createTeacherManagedStudentActivityBodyTitleMax = 160;
+
+export const createTeacherManagedStudentActivityBodyLocationMax = 160;
+
+export const createTeacherManagedStudentActivityBodyHoursExclusiveMin = 0;
+
+
+
+export const CreateTeacherManagedStudentActivityBody = zod.object({
+  "title": zod.string().min(1).max(createTeacherManagedStudentActivityBodyTitleMax),
+  "date": zod.coerce.date(),
+  "location": zod.string().min(1).max(createTeacherManagedStudentActivityBodyLocationMax),
+  "hours": zod.number().gt(createTeacherManagedStudentActivityBodyHoursExclusiveMin)
+})
+
+
+export const createTeacherManagedStudentActivityResponseHoursMin = 0;
+
+
+
+export const CreateTeacherManagedStudentActivityResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string().min(1),
+  "date": zod.string(),
+  "location": zod.string(),
+  "hours": zod.number().min(createTeacherManagedStudentActivityResponseHoursMin),
+  "updatedAt": zod.coerce.date()
+})
