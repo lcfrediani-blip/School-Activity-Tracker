@@ -15,8 +15,6 @@ export type StudentInput = {
   institute: string;
 };
 
-export type TeacherStudentInput = Pick<StudentInput, 'name'>;
-
 export type Student = StudentInput & {
   id: string;
   activities: Activity[];
@@ -46,7 +44,6 @@ type AppState = {
   isLoaded: boolean;
   isAuthenticated: boolean;
   saveStudent: (student: StudentInput) => Promise<void>;
-  addStudent: (student: TeacherStudentInput) => Promise<void>;
   setRole: (role: AppRole) => Promise<void>;
   addActivity: (activity: Omit<Activity, 'id'>) => Promise<void>;
   updateActivity: (id: string, activity: Omit<Activity, 'id'>) => Promise<void>;
@@ -248,19 +245,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await persist(nextStudent, nextStudents, role);
   };
 
-  const addStudent = async (input: TeacherStudentInput) => {
-    const nextStudent: Student = {
-      ...input,
-      className: '',
-      institute: '',
-      id: createId('student'),
-      activities: [],
-    };
-    const nextStudents = [...students, nextStudent];
-    setStudents(nextStudents);
-    await persist(student, nextStudents, role);
-  };
-
   const setRole = async (nextRole: AppRole) => {
     setRoleState(nextRole);
     await persist(student, students, nextRole);
@@ -307,7 +291,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isLoaded,
       isAuthenticated: Boolean(authEmail),
       saveStudent,
-      addStudent,
       setRole,
       addActivity,
       updateActivity,

@@ -1,16 +1,13 @@
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import {
   FlatList,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
-import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useApp, type Student } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,70 +47,6 @@ function formatActivityDate(date: string) {
   return parsed.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function AddStudentModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const colors = useColors();
-  const insets = useSafeAreaInsets();
-  const { addStudent } = useApp();
-  const [name, setName] = useState('');
-  const [error, setError] = useState('');
-
-  const save = async () => {
-    if (!name.trim()) {
-      setError('Inserisci il nome dell’alunno.');
-      return;
-    }
-    await addStudent({ name: name.trim() });
-    setName('');
-    setError('');
-    onClose();
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={[styles.modal, { backgroundColor: colors.background, paddingTop: insets.top + 10 }]}>
-        <View style={styles.modalHeader}>
-          <View>
-            <Text style={[styles.modalEyebrow, { color: colors.primary }]}>NUOVO PROFILO</Text>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Aggiungi alunno</Text>
-          </View>
-          <Pressable
-            accessibilityLabel="Chiudi"
-            onPress={onClose}
-            style={({ pressed }) => [styles.closeButton, { backgroundColor: colors.secondary }, pressed && { opacity: 0.6 }]}
-          >
-            <Ionicons name="close" size={22} color={colors.foreground} />
-          </Pressable>
-        </View>
-        <KeyboardAwareScrollViewCompat
-          bottomOffset={50}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={[styles.inputLabel, { color: colors.foreground }]}>Nome e cognome</Text>
-          <TextInput
-            accessibilityLabel="Nome e cognome"
-            onChangeText={setName}
-            placeholder="Es. Giulia Rossi"
-            placeholderTextColor={colors.mutedForeground}
-            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-            value={name}
-          />
-          {error ? <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text> : null}
-          <Pressable
-            accessibilityLabel="Salva alunno"
-            onPress={() => void save()}
-            style={({ pressed }) => [styles.saveButton, { backgroundColor: colors.primary }, pressed && { opacity: 0.82 }]}
-          >
-            <Text style={[styles.saveButtonText, { color: colors.primaryForeground }]}>Salva alunno</Text>
-            <Feather name="arrow-up-right" size={18} color={colors.primaryForeground} />
-          </Pressable>
-        </KeyboardAwareScrollViewCompat>
-      </View>
-    </Modal>
-  );
-}
-
 function StudentDetail({ student }: { student: Student }) {
   const colors = useColors();
   const totalHours = student.activities.reduce((sum, activity) => sum + activity.hours, 0);
@@ -150,9 +83,8 @@ function StudentDetail({ student }: { student: Student }) {
 export default function TeacherScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { students, setRole, isAuthenticated } = useApp();
+  const { students, setRole, isAuthenticated, role } = useApp();
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
 
   const exitTeacherMode = async () => {
     await setRole('student');
@@ -160,6 +92,7 @@ export default function TeacherScreen() {
   };
 
   if (!isAuthenticated) return <Redirect href="/login" />;
+  if (role !== 'teacher') return <Redirect href="/(tabs)" />;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -174,7 +107,7 @@ export default function TeacherScreen() {
             </View>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Nessun alunno registrato</Text>
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              Aggiungi i profili degli alunni per iniziare il monitoraggio.
+              La sincronizzazione dei profili tra dispositivi non è ancora attiva. Qui compaiono solo i profili disponibili su questo dispositivo.
             </Text>
           </View>
         }
@@ -188,13 +121,6 @@ export default function TeacherScreen() {
                 <Text style={[styles.eyebrow, { color: colors.primary }]}>AREA PROFESSORE</Text>
                 <Text style={[styles.pageTitle, { color: colors.foreground }]}>Monitoraggio</Text>
               </View>
-              <Pressable
-                accessibilityLabel="Aggiungi alunno"
-                onPress={() => setModalVisible(true)}
-                style={({ pressed }) => [styles.addButton, { backgroundColor: colors.primary }, pressed && { opacity: 0.8 }]}
-              >
-                <Feather name="plus" size={20} color={colors.primaryForeground} />
-              </Pressable>
             </View>
             {selectedStudent ? <StudentDetail student={selectedStudent} /> : null}
             <View style={styles.sectionHeading}>
@@ -206,7 +132,6 @@ export default function TeacherScreen() {
         renderItem={({ item }) => <StudentCard student={item} onPress={() => setSelectedStudent(item)} />}
         showsVerticalScrollIndicator={false}
       />
-      <AddStudentModal visible={modalVisible} onClose={() => setModalVisible(false)} />
     </View>
   );
 }
@@ -217,7 +142,6 @@ const styles = StyleSheet.create({
   headerCopy: { flex: 1, marginLeft: 15 },
   eyebrow: { fontSize: 10, fontWeight: '700', letterSpacing: 1.45, marginBottom: 5 },
   pageTitle: { fontSize: 30, fontWeight: '700', letterSpacing: -1 },
-  addButton: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   sectionHeading: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, marginTop: 10 },
   sectionTitle: { fontSize: 20, fontWeight: '700', letterSpacing: -0.4 },
   sectionCount: { fontSize: 13 },
@@ -246,14 +170,4 @@ const styles = StyleSheet.create({
   emptyIcon: { width: 60, height: 60, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   emptyTitle: { fontSize: 19, fontWeight: '700', marginBottom: 8 },
   emptyText: { textAlign: 'center', fontSize: 14, lineHeight: 21 },
-  modal: { flex: 1, paddingHorizontal: 20 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 26 },
-  modalEyebrow: { fontSize: 10, letterSpacing: 1.4, fontWeight: '700', marginBottom: 5 },
-  modalTitle: { fontSize: 27, fontWeight: '700', letterSpacing: -0.8 },
-  closeButton: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  inputLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8, marginTop: 4 },
-  input: { height: 50, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, fontSize: 15, marginBottom: 17 },
-  errorText: { fontSize: 13, marginBottom: 14 },
-  saveButton: { height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, marginTop: 4 },
-  saveButtonText: { fontSize: 15, fontWeight: '700' },
 });
