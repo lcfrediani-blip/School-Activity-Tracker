@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { Redirect, router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -100,6 +100,8 @@ export default function TeacherScreen() {
   const [selectedCloudStudentId, setSelectedCloudStudentId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const [search, setSearch] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshingRef = useRef(false);
   const isCloudTeacher = cloudProfile?.role === 'teacher';
   const studentQuery = useSearchTeacherStudents(
     { search },
@@ -125,6 +127,21 @@ export default function TeacherScreen() {
       enabled: isCloudTeacher && Boolean(selectedCloudStudentId),
     },
   });
+  const refreshMonitoring = async () => {
+    if (!isCloudTeacher || refreshingRef.current) return;
+    refreshingRef.current = true;
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        studentQuery.refetch(),
+        statsQuery.refetch(),
+        selectedCloudStudentId ? detailQuery.refetch() : Promise.resolve(null),
+      ]);
+    } finally {
+      refreshingRef.current = false;
+      setRefreshing(false);
+    }
+  };
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchText.trim()), 250);
     return () => clearTimeout(timer);
@@ -161,9 +178,11 @@ export default function TeacherScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <FlatList
-         contentContainerStyle={{ paddingTop: insets.top + 52, paddingBottom: insets.bottom + 28, paddingHorizontal: 20 }}
+        contentContainerStyle={{ paddingTop: insets.top + 52, paddingBottom: insets.bottom + 28, paddingHorizontal: 20 }}
         data={rows}
         keyExtractor={(item) => item.id}
+        refreshing={isCloudTeacher && refreshing}
+        onRefresh={() => void refreshMonitoring()}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <View style={[styles.emptyIcon, { backgroundColor: colors.accent }]}>
@@ -189,6 +208,21 @@ export default function TeacherScreen() {
                 <Text style={[styles.eyebrow, { color: colors.primary }]}>AREA PROFESSORE</Text>
                 <Text style={[styles.pageTitle, { color: colors.foreground }]}>Monitoraggio</Text>
               </View>
+              {isCloudTeacher ? (
+                <Pressable
+                  accessibilityLabel={refreshing ? 'Aggiornamento in corso' : 'Aggiorna monitoraggio'}
+                  accessibilityRole="button"
+                  disabled={refreshing}
+                  hitSlop={8}
+                  onPress={() => void refreshMonitoring()}
+                  style={[
+                    styles.refreshButton,
+                    { backgroundColor: colors.card, borderColor: colors.border, opacity: refreshing ? 0.6 : 1 },
+                  ]}
+                >
+                  <Feather name="refresh-cw" size={18} color={colors.primary} />
+                </Pressable>
+              ) : null}
             </View>
             {isCloudTeacher ? (
               <View style={[styles.summaryCard, { backgroundColor: colors.primary }]}>
@@ -293,6 +327,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   pageHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 22 },
   headerCopy: { flex: 1, marginLeft: 15 },
+  refreshButton: { width: 42, height: 42, borderWidth: 1, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginLeft: 10 },
   eyebrow: { fontSize: 10, fontWeight: '700', letterSpacing: 1.45, marginBottom: 5 },
   pageTitle: { fontSize: 30, fontWeight: '700', letterSpacing: -1 },
   summaryCard: { borderRadius: 18, padding: 15, marginBottom: 12, flexDirection: 'row' },
