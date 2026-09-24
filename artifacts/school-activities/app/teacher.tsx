@@ -3,6 +3,7 @@ import { Redirect, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -10,23 +11,46 @@ import {
   View,
 } from 'react-native';
 import {
+  getGetTeacherManagedStudentQueryKey,
   getGetTeacherStudentQueryKey,
   getGetTeacherStatsQueryKey,
+  getSearchTeacherManagedStudentsQueryKey,
   getSearchTeacherStudentsQueryKey,
+  useGetTeacherManagedStudent,
   useGetTeacherStudent,
   useGetTeacherStats,
+  useSearchTeacherManagedStudents,
   useSearchTeacherStudents,
 } from '@workspace/api-client-react';
 import { useApp, type Student } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-function StudentCard({ student, onPress }: { student: Student; onPress: () => void }) {
+type MonitoringStudent = {
+  id: string;
+  name: string;
+  email: string | null;
+  className: string | null;
+  institutionName: string | null;
+  activitiesCount: number;
+  totalHours: number;
+  source: 'device' | 'registered' | 'managed';
+};
+
+function StudentCard({ student, onPress }: { student: MonitoringStudent; onPress: () => void }) {
   const colors = useColors();
-  const totalHours = student.activities.reduce((sum, activity) => sum + activity.hours, 0);
+  const sourceLabel = student.source === 'managed'
+    ? 'Scheda docente'
+    : student.source === 'registered'
+      ? 'Account studente'
+      : 'Profilo locale';
+  const description = [sourceLabel, student.className, student.institutionName || student.email]
+    .filter(Boolean)
+    .join(' · ');
   return (
     <Pressable
-      accessibilityLabel={`Apri attività di ${student.name}`}
+      accessibilityLabel={`Apri attività di ${student.name}, ${sourceLabel}`}
+      accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
         styles.studentCard,
@@ -39,10 +63,17 @@ function StudentCard({ student, onPress }: { student: Student; onPress: () => vo
       </View>
       <View style={styles.studentCopy}>
         <Text style={[styles.studentName, { color: colors.foreground }]} numberOfLines={1}>{student.name}</Text>
+        <Text style={[styles.studentActivityCount, { color: colors.mutedForeground }]} numberOfLines={1}>
+          {description}
+        </Text>
       </View>
       <View style={styles.studentStats}>
-        <Text style={[styles.studentHours, { color: colors.primary }]}>{totalHours}h</Text>
-        <Text style={[styles.studentActivityCount, { color: colors.mutedForeground }]}>{student.activities.length} attività</Text>
+        <Text style={[styles.studentHours, { color: colors.primary }]}>
+          {student.totalHours.toLocaleString('it-IT', { maximumFractionDigits: 1 })}h
+        </Text>
+        <Text style={[styles.studentActivityCount, { color: colors.mutedForeground }]}>
+          {student.activitiesCount} attività
+        </Text>
       </View>
       <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
     </Pressable>
