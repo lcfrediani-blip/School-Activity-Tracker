@@ -150,7 +150,7 @@ function StudentDetail({ student }: { student: Student }) {
 export default function TeacherScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { students, setRole } = useApp();
+  const { students, setRole, isAuthenticated } = useApp();
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -158,6 +158,8 @@ export default function TeacherScreen() {
     await setRole('student');
     router.back();
   };
+
+  if (!isAuthenticated) return <Redirect href="/login" />;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>

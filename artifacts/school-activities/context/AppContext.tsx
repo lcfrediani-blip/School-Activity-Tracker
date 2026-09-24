@@ -27,12 +27,14 @@ export type AppRole = 'student' | 'teacher';
 export type LocalProfileInput = {
   email: string;
   name: string;
+  password: string;
   role: AppRole;
   className?: string;
   institute: string;
 };
 
-type LocalProfile = LocalProfileInput & {
+type LocalProfile = Omit<LocalProfileInput, 'password'> & {
+  passwordVerifier: string;
   studentId?: string;
 };
 
@@ -49,8 +51,8 @@ type AppState = {
   addActivity: (activity: Omit<Activity, 'id'>) => Promise<void>;
   updateActivity: (id: string, activity: Omit<Activity, 'id'>) => Promise<void>;
   removeActivity: (id: string) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  registerProfile: (profile: LocalProfileInput) => Promise<{ ok: boolean; error?: string }>;
+  signIn: (email: string, password: string) => Promise<{ ok: boolean; error?: string; role?: AppRole }>;
+  registerProfile: (profile: LocalProfileInput) => Promise<{ ok: boolean; error?: string; role?: AppRole }>;
   signOut: () => Promise<void>;
 };
 
@@ -62,6 +64,18 @@ const AppContext = createContext<AppState | undefined>(undefined);
 
 function createId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function createLocalPasswordVerifier(email: string, password: string) {
+  const value = `${email.trim().toLowerCase()}:${password}`;
+  let first = 0x811c9dc5;
+  let second = 0x9e3779b9;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    first = Math.imul(first ^ code, 0x01000193);
+    second = Math.imul(second ^ (code + index), 0x85ebca6b);
+  }
+  return `${(first >>> 0).toString(16).padStart(8, '0')}${(second >>> 0).toString(16).padStart(8, '0')}`;
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -145,6 +159,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!matchingProfile) {
       return { ok: false, error: 'Non troviamo un profilo su questo dispositivo. Creane uno per continuare.' };
     }
+    if (matchingProfile.passwordVerifier !== createLocalPasswordVerifier(normalizedEmail, password)) {
+      return { ok: false, error: 'La password non è corretta.' };
+    }
     const nextStudent =
       matchingProfile.role === 'student' && matchingProfile.studentId
         ? students.find((item) => item.id === matchingProfile.studentId) ?? student
@@ -154,7 +171,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await persist(nextStudent, students, matchingProfile.role);
     await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ email: normalizedEmail }));
     setAuthEmail(normalizedEmail);
-    return { ok: true };
+    return { ok: true, role: matchingProfile.role };
   };
 
   const registerProfile = async (input: LocalProfileInput) => {
@@ -164,6 +181,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     if (!input.name.trim() || !input.institute.trim()) {
       return { ok: false, error: 'Completa tutti i campi richiesti.' };
+    }
+    if (input.password.length < 6) {
+      return { ok: false, error: 'La password deve contenere almeno 6 caratteri.' };
     }
     if (input.role === 'student' && !input.className?.trim()) {
       return { ok: false, error: 'Indica la classe frequentata.' };
@@ -175,9 +195,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     let nextStudent = student;
     let nextStudents = students;
     let newProfile: LocalProfile = {
-      ...input,
       email: normalizedEmail,
       name: input.name.trim(),
+      passwordVerifier: createLocalPasswordVerifier(normalizedEmail, input.password),
+      role: input.role,
+      className: input.className,
       institute: input.institute.trim(),
     };
 
@@ -204,7 +226,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ email: normalizedEmail })),
       persist(nextStudent, nextStudents, input.role),
     ]);
-    return { ok: true };
+    return { ok: true, role: input.role };
   };
 
   const signOut = async () => {
