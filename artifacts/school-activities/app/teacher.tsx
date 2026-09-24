@@ -162,7 +162,7 @@ export default function TeacherScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <FlatList
-        contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + 28, paddingHorizontal: 20 }}
+         contentContainerStyle={{ paddingTop: insets.top + 52, paddingBottom: insets.bottom + 28, paddingHorizontal: 20 }}
         data={students}
         keyExtractor={(item) => item.id}
         ListEmptyComponent={

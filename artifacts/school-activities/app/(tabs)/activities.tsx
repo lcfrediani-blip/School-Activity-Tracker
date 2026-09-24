@@ -212,7 +212,7 @@ export default function ActivitiesScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <FlatList
-        contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: insets.bottom + 104, paddingHorizontal: 20 }}
+         contentContainerStyle={{ paddingTop: insets.top + 52, paddingBottom: insets.bottom + 104, paddingHorizontal: 20 }}
         data={activities}
         keyExtractor={(item) => item.id}
         ListEmptyComponent={

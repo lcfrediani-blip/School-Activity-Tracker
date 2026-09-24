@@ -33,7 +33,7 @@ export default function ProfileScreen() {
   return (
     <KeyboardAwareScrollViewCompat
       bottomOffset={50}
-      contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: insets.bottom + 100, paddingHorizontal: 20 }}
+      contentContainerStyle={{ paddingTop: insets.top + 52, paddingBottom: insets.bottom + 100, paddingHorizontal: 20 }}
       keyboardShouldPersistTaps="handled"
       style={[styles.screen, { backgroundColor: colors.background }]}
       showsVerticalScrollIndicator={false}
