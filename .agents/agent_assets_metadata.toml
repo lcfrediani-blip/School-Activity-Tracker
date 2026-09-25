@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Jhmdk4cCm-JcygdpA_jn2"
+uri = "file://artifacts/school-activities/assets/images/icon-transparent.png"
+type = "image"
+title = "Icona FuoriClasse — PNG 1024×1024"
+description = "PNG RGBA quadrato da 1024 × 1024 px. Gli angoli esterni sono trasparenti; il riquadro blu notte e il simbolo originale restano intatti."
+logical_id = "2db25129-44d9-4916-9c7f-d766b707c7b0"
+content_hash = "sha256:3f0950d511389671aeeebf167cd45f2c0164628603e539dced84fc859f04d60e"
+size = 766170
+mtime_ms = 1790332041798
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:3a51c799-cf03-4185-96e9-5299cac16572/2db25129-44d9-4916-9c7f-d766b707c7b0/3827bebc-c747-4759-808e-11707f4015e7"
+storage_version_token = "1790332073326805"
+content_type = "image/png"
